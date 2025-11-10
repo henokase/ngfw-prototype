@@ -24,8 +24,20 @@ class Config:
     DEBUG = os.environ.get('FLASK_ENV') == 'development'
     
     # Database Configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI') or \
-        'sqlite:///' + os.path.join(basedir, 'instance', 'database.db')
+    # Use absolute path for SQLite database (required on Windows)
+    default_db_path = os.path.join(basedir, 'instance', 'database.db')
+    env_db_uri = os.environ.get('SQLALCHEMY_DATABASE_URI')
+    
+    # If environment variable is set and is a relative SQLite path, convert to absolute
+    if env_db_uri and env_db_uri.startswith('sqlite:///') and not env_db_uri[10:11] in ['/', '\\']:
+        # Relative path detected, convert to absolute
+        relative_path = env_db_uri.replace('sqlite:///', '')
+        absolute_path = os.path.join(basedir, relative_path)
+        SQLALCHEMY_DATABASE_URI = f'sqlite:///{absolute_path}'.replace('\\', '/')
+    elif env_db_uri:
+        SQLALCHEMY_DATABASE_URI = env_db_uri
+    else:
+        SQLALCHEMY_DATABASE_URI = f'sqlite:///{default_db_path}'.replace('\\', '/')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # Set to True for SQL query debugging
     
@@ -82,7 +94,8 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     """Testing-specific configuration"""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'instance', 'test_database.db')
+    test_db_path = os.path.join(basedir, 'instance', 'test_database.db')
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{test_db_path}'.replace('\\', '/')
     WTF_CSRF_ENABLED = False
 
 
