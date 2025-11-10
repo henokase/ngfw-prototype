@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Optional, Type
 from contextlib import contextmanager
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import logging
 
 from models import db, User, Feedback, UploadedFile, LogEvent
@@ -388,9 +389,10 @@ def execute_raw_query(query: str) -> Optional[List[Dict[str, Any]]]:
         List of result dictionaries or None on error
     """
     try:
-        result = db.session.execute(query)
+        result = db.session.execute(text(query))
         if result.returns_rows:
-            return [dict(row) for row in result]
+            # Use _mapping to convert Row objects to dictionaries
+            return [dict(row._mapping) for row in result]
         db.session.commit()
         return []
     except SQLAlchemyError as e:
