@@ -1,162 +1,130 @@
 # 🎯 Next Action - Immediate Implementation Steps
 
 **Last Updated:** November 10, 2025  
-**Current Phase:** Phase 1 - Project Foundation & Setup  
-**Current Step:** Step 1.2 - Create Base Project Structure  
-**Status:** Step 1.1 Complete - Ready for Step 1.2
+**Current Phase:** Phase 4 - Middleware Components  
+**Current Step:** Step 4.1 - Create Request Logger  
+**Status:** Phases 1, 2, & 3 Complete ✅ - Ready for Phase 4
 
 ---
 
 ## 🚀 Immediate Next Steps
 
-### **Phase 1, Step 1.2: Create Base Project Structure**
+### **Phase 4: Middleware Components Implementation**
 
-With the environment setup complete, the next step is to create the core application files. Complete these tasks in order:
+**Note:** Phases 1, 2, and 3 are now complete! We have the foundation, core application, and services layer ready.
 
----
-
-## ✅ Task 1: Create app.py (Flask Application Entry Point)
-
-**Location:** `~/ngfw-prototype/web/app.py`  
-**Priority:** Critical  
-**Estimated Time:** 10-15 minutes
-
-### Purpose:
-This is the main Flask application entry point that initializes the app, registers blueprints, and configures error handlers.
-
-### Key Components:
-- Initialize Flask application
-- Load configuration from `config.py`
-- Initialize SQLAlchemy database
-- Register route blueprints
-- Configure error handlers (404, 500)
-- Set up logging
-- Register middleware
-
-### Implementation Notes:
-- Import Flask and extensions
-- Create app factory pattern (optional) or direct instantiation
-- Register all route blueprints from `src/routes/`
-- Add custom error handlers
-- Configure CORS if needed
-- Set up before_request and after_request hooks
+Now we'll implement middleware components that intercept and process all HTTP requests and responses. Complete these tasks in order:
 
 ---
 
-## ✅ Task 2: Create config.py (Configuration Management)
+## ✅ Task 1: Create Request Logger (src/middleware/request_logger.py)
 
-**Location:** `~/ngfw-prototype/web/config.py`  
-**Priority:** Critical  
-**Estimated Time:** 10 minutes
-
-### Purpose:
-Centralized configuration management for the Flask application.
-
-### Key Components:
-- Define Flask app configuration class
-- Set database URI (SQLite: `sqlite:///instance/database.db`)
-- Configure upload folders:
-  - `UPLOAD_FOLDER = 'uploads/safe'`
-  - `QUARANTINE_FOLDER = 'uploads/quarantine'`
-  - `TEMP_UPLOAD_FOLDER = '/tmp/uploads'`
-- Set secret key from environment variable
-- Define `MAX_CONTENT_LENGTH` for file uploads (16MB)
-- Add ClamAV configuration (host, port)
-- Configure VM1 API settings
-- Set logging levels and file paths
-- Add environment-based configs (development/production)
-
-### Implementation Notes:
-- Use `os.environ.get()` to load from .env file
-- Create separate config classes for dev/prod if needed
-- Use `python-dotenv` to load environment variables
-
----
-
-## ✅ Task 3: Create models.py (Database Models)
-
-**Location:** `~/ngfw-prototype/web/models.py`  
+**Location:** `~/ngfw-prototype/web/src/middleware/request_logger.py`  
 **Priority:** Critical  
 **Estimated Time:** 15-20 minutes
 
 ### Purpose:
-Define all database models using SQLAlchemy ORM.
-
-### Required Models:
-
-1. **User Model**
-   - `id` (Integer, Primary Key)
-   - `username` (String, Unique, Not Null)
-   - `password` (String, Not Null) - stored as plain text for testing
-   - `email` (String)
-   - `created_at` (DateTime, default=now)
-
-2. **Feedback Model**
-   - `id` (Integer, Primary Key)
-   - `user_id` (Integer, Foreign Key to User)
-   - `message` (Text, Not Null)
-   - `created_at` (DateTime, default=now)
-
-3. **UploadedFile Model**
-   - `id` (Integer, Primary Key)
-   - `filename` (String, Not Null)
-   - `filepath` (String, Not Null)
-   - `scan_status` (String) - 'clean', 'infected', 'error'
-   - `scan_result` (Text) - ClamAV result details
-   - `signature_name` (String) - Malware signature if infected
-   - `uploader_ip` (String) - Client IP address
-   - `uploaded_at` (DateTime, default=now)
-
-4. **LogEvent Model**
-   - `id` (Integer, Primary Key)
-   - `ip_address` (String)
-   - `endpoint` (String)
-   - `method` (String) - GET, POST, etc.
-   - `payload` (Text) - Request data
-   - `timestamp` (DateTime, default=now)
-
-### Implementation Notes:
-- Import SQLAlchemy from flask_sqlalchemy
-- Define relationships between models
-- Add `__repr__` methods for debugging
-- Use appropriate column types and constraints
-
----
-
-## ✅ Task 4: Create wsgi.py (Production Entry Point)
-
-**Location:** `~/ngfw-prototype/web/wsgi.py`  
-**Priority:** Medium  
-**Estimated Time:** 5 minutes
-
-### Purpose:
-WSGI entry point for production deployment with Gunicorn.
+Log all incoming HTTP requests for traffic analysis and attack detection.
 
 ### Key Components:
-- Import the Flask app from `app.py`
-- Expose the app object for Gunicorn
-- Add production-specific configurations if needed
+- Log all incoming requests (IP, method, path, headers)
+- Capture request payload/parameters
+- Log response status codes
+- Store in LogEvent database table
+- Extract client IP from X-Real-IP or X-Forwarded-For headers
+- Log user agent strings
+- Capture request timing
 
 ### Implementation Notes:
-- Simple file that imports and exposes the Flask app
-- Used by Gunicorn: `gunicorn --bind 0.0.0.0:5000 wsgi:app`
-- Can add production logging configuration here
-
-### Example Structure:
-```python
-from app import app
-
-if __name__ == "__main__":
-    app.run()
-```
+- Use Flask's before_request and after_request hooks
+- Import database_service for LogEvent creation
+- Import utils for IP extraction
+- Handle large payloads gracefully (truncate if needed)
+- Don't log static file requests (optional optimization)
 
 ---
 
-## ✅ Task 5: Verify Base Structure
+## ✅ Task 2: Create Security Headers Middleware (src/middleware/security_headers.py)
 
-**Location:** `~/ngfw-prototype/web/`  
+**Location:** `~/ngfw-prototype/web/src/middleware/security_headers.py`  
+**Priority:** Medium  
+**Estimated Time:** 10 minutes
+
+### Purpose:
+Add basic security headers to responses (intentionally relaxed for testing).
+
+### Key Components:
+- Add X-Content-Type-Options: nosniff
+- Add X-Frame-Options: SAMEORIGIN
+- Add Content-Security-Policy (relaxed for XSS testing)
+- Optionally add X-XSS-Protection (deprecated but for comparison)
+- Make headers configurable
+
+### Implementation Notes:
+- Use Flask's after_request hook
+- Keep CSP relaxed to allow XSS attacks for testing
+- Add configuration option to enable/disable headers
+- Log when headers are added
+
+---
+
+## ✅ Task 3: Create Rate Limiter Middleware (src/middleware/rate_limit.py)
+
+**Location:** `~/ngfw-prototype/web/src/middleware/rate_limit.py`  
+**Priority:** Medium  
+**Estimated Time:** 15 minutes
+
+### Purpose:
+Simple in-memory rate limiting to prevent abuse and demonstrate traffic control.
+
+### Key Components:
+- Track requests per IP address
+- Configurable thresholds (requests per minute)
+- In-memory storage (dictionary with timestamps)
+- Log rate limit violations
+- Return 429 Too Many Requests when limit exceeded
+- Clean up old entries periodically
+
+### Implementation Notes:
+- Use Flask's before_request hook
+- Store request counts in a dictionary: {ip: [timestamps]}
+- Remove timestamps older than the time window
+- Make thresholds configurable (default: 100 requests/minute)
+- Log violations to security logger
+
+---
+
+## ✅ Task 4: Register Middleware in app.py
+
+**Location:** `~/ngfw-prototype/web/app.py`  
 **Priority:** High  
-**Estimated Time:** 5 minutes
+**Estimated Time:** 10 minutes
+
+### Purpose:
+Integrate all middleware components into the Flask application.
+
+### Key Components:
+- Import all middleware modules
+- Register request_logger middleware
+- Register security_headers middleware
+- Register rate_limit middleware
+- Ensure correct order of middleware execution
+- Add configuration options
+
+### Implementation Notes:
+- Import from src.middleware
+- Use app.before_request() and app.after_request() decorators
+- Middleware order matters: rate_limit → request_logger → security_headers
+- Make middleware optional via configuration
+- Test that middleware doesn't break existing functionality
+
+---
+
+## ✅ Task 5: Verify Middleware Layer
+
+**Location:** `~/ngfw-prototype/web/src/middleware/`  
+**Priority:** High  
+**Estimated Time:** 10 minutes
 
 ### Verification Steps:
 
@@ -165,95 +133,107 @@ if __name__ == "__main__":
 cd ~/ngfw-prototype/web
 
 # Activate virtual environment
-source venv/bin/activate
+source venv/bin/activate  # Linux/Mac
+# OR
+venv\Scripts\activate  # Windows
 
-# Verify all base files exist
-ls -la app.py config.py models.py wsgi.py requirements.txt .env .gitignore
+# List middleware directory
+ls -la src/middleware/
 
-# Test Flask app initialization (should not error)
-python -c "from app import app; print('Flask app initialized successfully')"
+# Test imports
+python -c "from src.middleware.request_logger import *; print('Request logger OK')"
+python -c "from src.middleware.security_headers import *; print('Security headers OK')"
+python -c "from src.middleware.rate_limit import *; print('Rate limiter OK')"
 
-# Verify database models can be imported
-python -c "from models import User, Feedback, UploadedFile, LogEvent; print('Models imported successfully')"
+# Check for syntax errors
+python -m py_compile src/middleware/request_logger.py
+python -m py_compile src/middleware/security_headers.py
+python -m py_compile src/middleware/rate_limit.py
+
+# Run Flask app to test middleware
+python app.py
+
+# Test with curl (in another terminal)
+curl -v http://127.0.0.1:5000/
+curl -v http://127.0.0.1:5000/health
 ```
 
 **Expected Output:**
-- All files exist
+- All middleware files created
 - No import errors
-- Flask app initializes without errors
-- Models can be imported successfully
+- No syntax errors
+- Flask app runs with middleware active
+- Security headers present in responses
+- Requests logged to database
+- Rate limiting works (test with multiple rapid requests)
 
 ---
 
 ## 📋 Verification Checklist
 
-After completing Step 1.2 tasks, verify:
+After completing Phase 4 tasks, verify:
 
-- [ ] `app.py` created with Flask initialization
-- [ ] `config.py` created with all configuration classes
-- [ ] `models.py` created with all 4 database models
-- [ ] `wsgi.py` created for production deployment
-- [ ] All files can be imported without errors
-- [ ] Flask app initializes successfully
-- [ ] No syntax errors in any file
-- [ ] Virtual environment still activated
+- [ ] `request_logger.py` created with request/response logging
+- [ ] `security_headers.py` created with header injection
+- [ ] `rate_limit.py` created with rate limiting logic
+- [ ] All middleware files can be imported without errors
+- [ ] No syntax errors in any middleware file
+- [ ] Middleware registered in app.py
+- [ ] Flask app runs with all middleware active
+- [ ] Requests are logged to LogEvent table
+- [ ] Security headers appear in responses
+- [ ] Rate limiting works (429 after threshold)
+- [ ] Middleware doesn't break existing endpoints
 
 ---
 
 ## 🎯 Next Phase Preview
 
-Once Step 1.2 is complete, you will move to:
+Once Phase 4 is complete, you will move to:
 
-### **Step 1.3: Create Directory Structure**
+### **Phase 5: Vulnerable Route Modules**
 
-Creating all necessary folders:
-- `instance/` - Database storage
-- `logs/` - Application logs
-- `uploads/safe/` - Clean files
-- `uploads/quarantine/` - Infected files
-- `/tmp/uploads/` - Temporary storage
-- `src/` - Application code
-- `src/routes/` - Route handlers
-- `src/services/` - Business logic
-- `src/middleware/` - Middleware
-- `src/templates/` - HTML templates
-- `static/css/` - Stylesheets
-- `static/js/` - JavaScript
-- `static/images/` - Images
-- `nginx/` - Nginx configs
-- `tests/` - Test scripts
+Implementing intentionally vulnerable endpoints:
+- **Step 5.1:** `src/routes/auth_routes.py` - SQL injection vulnerability (`/login`)
+- **Step 5.2:** `src/routes/upload_routes.py` - File upload with malware scanning (`/upload`)
+- **Step 5.3:** `src/routes/command_routes.py` - Command injection vulnerability (`/cmd`)
+- **Step 5.4:** `src/routes/file_routes.py` - Path traversal vulnerability (`/file`)
+- **Step 5.5:** `src/routes/xss_routes.py` - XSS vulnerability (`/feedback`)
+
+These routes will use the services and middleware we've built to demonstrate various attack vectors for NGFW testing.
 
 ---
 
 ## 🚨 Important Notes
 
 ### Prerequisites
-- Step 1.1 completed (virtual environment and dependencies installed)
+- Phases 1, 2, & 3 completed ✅ (foundation, core, services)
 - Virtual environment activated
-- Text editor or IDE ready for coding
+- Flask application running successfully
+- All services implemented and tested
 
 ### Common Issues & Solutions
 
-**Issue 1:** Import errors when testing app.py
+**Issue 1:** Middleware not executing
 ```bash
-# Ensure virtual environment is activated
-source venv/bin/activate
-# Verify all dependencies are installed
-pip list
+# Ensure middleware is registered in correct order
+# Check app.py for proper decorator usage
+# Verify imports are correct
 ```
 
-**Issue 2:** SQLAlchemy import errors
+**Issue 2:** Rate limiter blocking all requests
 ```bash
-# Reinstall Flask-SQLAlchemy
-pip install --upgrade Flask-SQLAlchemy
+# Check rate limit threshold configuration
+# Ensure cleanup of old timestamps is working
+# Verify IP extraction is correct
 ```
 
-**Issue 3:** Configuration not loading from .env
+**Issue 3:** Requests not being logged to database
 ```bash
-# Ensure python-dotenv is installed
-pip install python-dotenv
-# Verify .env file exists
-ls -la .env
+# Check database connection
+# Verify LogEvent model is imported
+# Check for database errors in logs
+python -c "from models import LogEvent; print(LogEvent.query.count())"
 ```
 
 ---
@@ -261,10 +241,10 @@ ls -la .env
 ## 📊 Progress Tracking
 
 ### Current Status
-- **Phase:** 1 of 14
-- **Step:** 1.2 of 1.3 (Step 1.1 Complete ✅)
-- **Overall Progress:** ~3%
-- **Estimated Time Remaining:** 20-30 hours
+- **Phase:** 4 of 14 (Phases 1, 2, & 3 Complete ✅)
+- **Step:** 4.1 of 4.3
+- **Overall Progress:** ~12%
+- **Estimated Time Remaining:** 17-24 hours
 
 ### Update Instructions
 Once you complete these tasks:
@@ -279,21 +259,24 @@ Once you complete these tasks:
 ```bash
 # Activate virtual environment (run this every time you start working)
 cd ~/ngfw-prototype/web
-source venv/bin/activate
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate  # Windows
 
-# Test Flask app initialization
-python -c "from app import app; print('App initialized')"
+# Test middleware imports
+python -c "from src.middleware import request_logger, security_headers, rate_limit"
 
-# Test database models
-python -c "from models import User, Feedback, UploadedFile, LogEvent; print('Models OK')"
-
-# Test configuration loading
-python -c "from config import Config; print('Config loaded')"
-
-# Run Flask development server (after app.py is complete)
+# Run Flask app with middleware
 python app.py
-# OR
-flask run
+
+# Test endpoints with middleware (in another terminal)
+curl -v http://127.0.0.1:5000/
+curl -v http://127.0.0.1:5000/health
+
+# Test rate limiting (send many requests quickly)
+for i in {1..110}; do curl http://127.0.0.1:5000/; done
+
+# Check logged requests in database
+python -c "from models import LogEvent; print(f'Logged requests: {LogEvent.query.count()}')"
 ```
 
 ---
@@ -309,15 +292,16 @@ flask run
 
 ## ✅ Ready to Begin?
 
-**Start with Task 1** and work through each task sequentially. Once all tasks in Step 1.2 are complete, this file will be updated with Step 1.3 details.
+**Start with Task 1** and work through each task sequentially. Once all tasks in Phase 4 are complete, you'll have a complete middleware layer!
 
 **Commands to start:**
 ```bash
 cd ~/ngfw-prototype/web
 source venv/bin/activate
-# Create app.py first, then config.py, models.py, and wsgi.py
+# Create the first middleware file
+touch src/middleware/request_logger.py
 ```
 
-**Note:** Refer to `Project-structure.md` for detailed file structure and `IMPLEMENTATION_PLAN.md` for complete specifications.
+**Note:** Phase 4 focuses on building middleware that intercepts all HTTP traffic. This is critical for logging, security, and rate limiting. The middleware will work with the services we built in Phase 3.
 
 Good luck! 🚀
