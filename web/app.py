@@ -32,7 +32,10 @@ from src.routes.redirect_routes import redirect_bp
 from src.routes.misc_routes import misc_bp
 
 # Initialize Flask application
-app = Flask(__name__)
+# Set template and static folders to src/ subdirectories
+app = Flask(__name__, 
+            template_folder='src/templates',
+            static_folder='static')
 
 # Load configuration
 config_name = os.environ.get('FLASK_ENV', 'development')
