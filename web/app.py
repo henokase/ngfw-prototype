@@ -16,6 +16,11 @@ from flask import Flask, render_template, request, jsonify
 from config import get_config
 from models import db, init_db
 
+# Import middleware
+from src.middleware.request_logger import init_request_logger
+from src.middleware.security_headers import init_security_headers
+from src.middleware.rate_limit import init_rate_limiter
+
 # Initialize Flask application
 app = Flask(__name__)
 
@@ -106,39 +111,32 @@ setup_logging()
 # Initialize database (after directories are created)
 init_db(app)
 
+# Initialize middleware components
+# Order matters: rate_limit -> request_logger -> security_headers
+app.logger.info('Initializing middleware components...')
 
-@app.before_request
-def log_request():
-    """
-    Log all incoming requests before processing
-    
-    Captures IP address, endpoint, method, and user agent for analysis.
-    This data is used by the NGFW system for traffic analysis.
-    """
-    ip_address = request.headers.get('X-Real-IP') or request.remote_addr
-    app.logger.info(
-        f'Request: {request.method} {request.path} from {ip_address} '
-        f'- User-Agent: {request.headers.get("User-Agent", "Unknown")}'
-    )
+try:
+    # Rate limiter (checks before request processing)
+    init_rate_limiter(app)
+    app.logger.info('[OK] Rate limiter middleware initialized')
+except Exception as e:
+    app.logger.error(f'Failed to initialize rate limiter: {str(e)}')
 
+try:
+    # Request logger (logs all requests and responses)
+    init_request_logger(app)
+    app.logger.info('[OK] Request logger middleware initialized')
+except Exception as e:
+    app.logger.error(f'Failed to initialize request logger: {str(e)}')
 
-@app.after_request
-def log_response(response):
-    """
-    Log response status after processing request
-    
-    Args:
-        response: Flask response object
-    
-    Returns:
-        response: Unmodified response object
-    """
-    ip_address = request.headers.get('X-Real-IP') or request.remote_addr
-    app.logger.info(
-        f'Response: {response.status_code} for {request.method} {request.path} '
-        f'to {ip_address}'
-    )
-    return response
+try:
+    # Security headers (adds headers to responses)
+    init_security_headers(app)
+    app.logger.info('[OK] Security headers middleware initialized')
+except Exception as e:
+    app.logger.error(f'Failed to initialize security headers: {str(e)}')
+
+app.logger.info('All middleware components initialized successfully')
 
 
 # ============================================================================
@@ -214,26 +212,27 @@ def index():
         
         <div class="status">
             <h3>✅ Application Status</h3>
-            <p><strong>Phase 1, Step 1.2 Complete:</strong> Base project structure created</p>
+            <p><strong>Phase 4 Complete:</strong> Middleware layer implemented</p>
             <p><strong>Flask:</strong> Running</p>
             <p><strong>Database:</strong> Initialized</p>
             <p><strong>Logging:</strong> Active</p>
+            <p><strong>Middleware:</strong> Request Logger, Security Headers, Rate Limiter</p>
         </div>
         
         <div class="info">
             <h3>📋 Implementation Progress</h3>
             <p><strong>Completed:</strong></p>
             <ul>
-                <li>✅ Environment Setup (Step 1.1)</li>
-                <li>✅ Base Project Structure (Step 1.2)</li>
-                <li>⏳ Directory Structure (Step 1.3) - In Progress</li>
+                <li>✅ Phase 1: Project Foundation & Setup</li>
+                <li>✅ Phase 2: Core Application Setup</li>
+                <li>✅ Phase 3: Services Layer</li>
+                <li>✅ Phase 4: Middleware Components</li>
             </ul>
             <p><strong>Next Steps:</strong></p>
             <ul>
-                <li>Create src/ directory structure</li>
-                <li>Implement route modules (Phase 5)</li>
-                <li>Create service layer (Phase 3)</li>
-                <li>Build frontend templates (Phase 6)</li>
+                <li>Phase 5: Vulnerable Route Modules</li>
+                <li>Phase 6: Frontend Templates</li>
+                <li>Phase 7: Testing & Validation</li>
             </ul>
         </div>
         

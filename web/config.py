@@ -71,10 +71,11 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hour
     
-    # Rate Limiting Configuration
-    RATE_LIMIT_ENABLED = False  # Disabled for testing
-    RATE_LIMIT_REQUESTS = 100
-    RATE_LIMIT_WINDOW = 60  # seconds
+    # Middleware Configuration
+    ENABLE_RATE_LIMIT = True  # Enable rate limiting
+    RATE_LIMIT_PER_MINUTE = 100  # Max requests per minute per IP
+    ENABLE_SECURITY_HEADERS = True  # Enable security headers
+    ENABLE_REQUEST_LOGGING = True  # Enable request logging to database
 
 
 class DevelopmentConfig(Config):
