@@ -21,6 +21,16 @@ from src.middleware.request_logger import init_request_logger
 from src.middleware.security_headers import init_security_headers
 from src.middleware.rate_limit import init_rate_limiter
 
+# Import route blueprints
+from src.routes.auth_routes import auth_bp
+from src.routes.upload_routes import upload_bp
+from src.routes.command_routes import cmd_bp
+from src.routes.file_routes import file_bp
+from src.routes.xss_routes import xss_bp
+from src.routes.xml_routes import xml_bp
+from src.routes.redirect_routes import redirect_bp
+from src.routes.misc_routes import misc_bp
+
 # Initialize Flask application
 app = Flask(__name__)
 
@@ -142,16 +152,28 @@ app.logger.info('All middleware components initialized successfully')
 # ============================================================================
 # Route Registration
 # ============================================================================
-# Note: Route blueprints will be registered here in Phase 5
-# For now, we'll create a simple homepage
+app.logger.info('Registering route blueprints...')
 
-@app.route('/')
-def index():
+# Register blueprints
+app.register_blueprint(misc_bp)  # Misc routes (/, /about, /help, etc.)
+app.register_blueprint(auth_bp)  # Authentication routes (/login, /register, etc.)
+app.register_blueprint(upload_bp)  # File upload routes (/upload)
+app.register_blueprint(cmd_bp)  # Command injection routes (/cmd)
+app.register_blueprint(file_bp)  # Path traversal routes (/file)
+app.register_blueprint(xss_bp)  # XSS routes (/feedback)
+app.register_blueprint(xml_bp)  # XML/XXE routes (/api/xml)
+app.register_blueprint(redirect_bp)  # Redirect routes (/redirect)
+
+app.logger.info('[OK] All route blueprints registered successfully')
+
+# Keep the old homepage as fallback (will be overridden by misc_bp)
+@app.route('/old_index')
+def old_index():
     """
-    Homepage - Landing page with links to all vulnerable endpoints
+    Old homepage - kept for reference
     
     Returns:
-        HTML: Homepage with endpoint cards
+        HTML: Simple homepage
     """
     return """
     <!DOCTYPE html>
