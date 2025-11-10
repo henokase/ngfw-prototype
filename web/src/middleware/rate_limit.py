@@ -19,7 +19,6 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from src.services.utils import extract_ip_address
 from src.services.logging_service import log_security_event, get_security_logger
 
 logger = logging.getLogger('app')
@@ -29,48 +28,68 @@ security_logger = get_security_logger()
 class RateLimiter:
     """
     In-memory rate limiter using sliding window algorithm
+    Supports session-based (unauthenticated), account-based (authenticated), and global limits
     """
     
-    def __init__(self, requests_per_minute=100, cleanup_interval=60):
+    def __init__(self, requests_per_minute=100, global_requests_per_second=50, cleanup_interval=60):
         """
         Initialize rate limiter
         
         Args:
-            requests_per_minute: Maximum requests allowed per minute per IP
+            requests_per_minute: Maximum requests allowed per minute per session/account
+            global_requests_per_second: Maximum total requests per second site-wide
             cleanup_interval: Interval in seconds to clean up old entries
         """
         self.requests_per_minute = requests_per_minute
+        self.global_requests_per_second = global_requests_per_second
         self.cleanup_interval = cleanup_interval
-        self.request_log = defaultdict(list)  # {ip: [timestamps]}
+        self.request_log = defaultdict(list)  # {identifier: [timestamps]}
+        self.global_requests = []  # Global request timestamps
         self.lock = threading.Lock()
         self.last_cleanup = datetime.utcnow()
         
-        logger.info(f"Rate limiter initialized: {requests_per_minute} requests/minute")
+        logger.info(f"Rate limiter initialized: {requests_per_minute} requests/minute per user, {global_requests_per_second} requests/sec global")
     
-    def is_allowed(self, ip_address):
+    def is_allowed(self, identifier, is_global_check=False):
         """
-        Check if request from IP is allowed
+        Check if request from identifier is allowed
         
         Args:
-            ip_address: Client IP address
+            identifier: Session ID, username, or 'GLOBAL' for site-wide check
+            is_global_check: If True, check global rate limit
             
         Returns:
             Tuple of (allowed: bool, remaining: int, reset_time: datetime)
         """
         now = datetime.utcnow()
-        window_start = now - timedelta(minutes=1)
         
         with self.lock:
             # Clean up old entries if needed
             if (now - self.last_cleanup).total_seconds() > self.cleanup_interval:
                 self._cleanup_old_entries()
             
-            # Get request timestamps for this IP
-            timestamps = self.request_log[ip_address]
+            # Check global rate limit first (requests per second)
+            if is_global_check:
+                global_window_start = now - timedelta(seconds=1)
+                self.global_requests = [ts for ts in self.global_requests if ts > global_window_start]
+                
+                if len(self.global_requests) >= self.global_requests_per_second:
+                    oldest_timestamp = min(self.global_requests)
+                    reset_time = oldest_timestamp + timedelta(seconds=1)
+                    return False, 0, reset_time
+                
+                self.global_requests.append(now)
+                remaining = self.global_requests_per_second - len(self.global_requests)
+                reset_time = now + timedelta(seconds=1)
+                return True, remaining, reset_time
+            
+            # Check per-user rate limit (requests per minute)
+            window_start = now - timedelta(minutes=1)
+            timestamps = self.request_log[identifier]
             
             # Remove timestamps outside the window
             timestamps = [ts for ts in timestamps if ts > window_start]
-            self.request_log[ip_address] = timestamps
+            self.request_log[identifier] = timestamps
             
             # Check if limit exceeded
             if len(timestamps) >= self.requests_per_minute:
@@ -93,24 +112,28 @@ class RateLimiter:
         now = datetime.utcnow()
         window_start = now - timedelta(minutes=5)  # Keep 5 minutes of history
         
-        # Remove IPs with no recent requests
-        ips_to_remove = []
-        for ip, timestamps in self.request_log.items():
+        # Remove identifiers with no recent requests
+        identifiers_to_remove = []
+        for identifier, timestamps in self.request_log.items():
             # Filter out old timestamps
             recent_timestamps = [ts for ts in timestamps if ts > window_start]
             if recent_timestamps:
-                self.request_log[ip] = recent_timestamps
+                self.request_log[identifier] = recent_timestamps
             else:
-                ips_to_remove.append(ip)
+                identifiers_to_remove.append(identifier)
         
         # Remove empty entries
-        for ip in ips_to_remove:
-            del self.request_log[ip]
+        for identifier in identifiers_to_remove:
+            del self.request_log[identifier]
+        
+        # Clean up global requests
+        global_window_start = now - timedelta(minutes=5)
+        self.global_requests = [ts for ts in self.global_requests if ts > global_window_start]
         
         self.last_cleanup = now
         
-        if ips_to_remove:
-            logger.debug(f"Cleaned up {len(ips_to_remove)} inactive IPs from rate limiter")
+        if identifiers_to_remove:
+            logger.debug(f"Cleaned up {len(identifiers_to_remove)} inactive identifiers from rate limiter")
     
     def get_stats(self):
         """
@@ -206,18 +229,43 @@ def init_rate_limiter(app):
             return
         
         try:
-            # Get client IP
-            ip_address = extract_ip_address(request)
+            from flask import session
+            import uuid
             
-            # Check rate limit
-            allowed, remaining, reset_time = limiter.is_allowed(ip_address)
+            # Check global rate limit first (prevent site-wide floods)
+            global_allowed, _, global_reset = limiter.is_allowed('GLOBAL', is_global_check=True)
+            if not global_allowed:
+                logger.warning("Global rate limit exceeded - site under flood")
+                response = jsonify({
+                    'error': 'Service temporarily unavailable',
+                    'message': 'Site is experiencing high traffic. Please try again later.',
+                    'retry_after': int((global_reset - datetime.utcnow()).total_seconds())
+                })
+                response.status_code = 503
+                return response
+            
+            # Determine identifier: username (authenticated) or session_id (unauthenticated)
+            identifier = None
+            if 'username' in session:
+                identifier = f"user:{session['username']}"
+            elif 'session_id' in session:
+                identifier = f"session:{session['session_id']}"
+            else:
+                # Create session ID if it doesn't exist
+                session['session_id'] = str(uuid.uuid4())
+                identifier = f"session:{session['session_id']}"
+            
+            # Check per-user/session rate limit
+            allowed, remaining, reset_time = limiter.is_allowed(identifier)
             
             if not allowed:
                 # Log rate limit violation
+                # VM2 only sees VM1's IP (10.0.0.1)
+                ip_address = request.remote_addr or '10.0.0.1'
                 log_security_event(
                     logger=security_logger,
                     event_type='rate_limit_exceeded',
-                    message=f"Rate limit exceeded for IP: {ip_address}",
+                    message=f"Rate limit exceeded for {identifier}",
                     ip_address=ip_address,
                     endpoint=request.path,
                     method=request.method

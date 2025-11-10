@@ -113,7 +113,7 @@ class LogEvent(db.Model):
     LogEvent model for tracking all HTTP requests and events
     
     This model logs all incoming requests for analysis by the NGFW system,
-    including IP addresses, endpoints, methods, and payloads.
+    including IP addresses, endpoints, methods, payloads, session info, and response times.
     """
     __tablename__ = 'log_events'
     
@@ -125,6 +125,14 @@ class LogEvent(db.Model):
     user_agent = db.Column(db.String(512), nullable=True)
     status_code = db.Column(db.Integer, nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    # New columns for enhanced tracking
+    session_id = db.Column(db.String(255), nullable=True, index=True)  # Session ID for unauthenticated users
+    username = db.Column(db.String(100), nullable=True, index=True)  # Username for authenticated users
+    upload_result = db.Column(db.String(20), nullable=True)  # 'clean', 'infected', 'error', or None
+    filename = db.Column(db.String(255), nullable=True)  # Uploaded filename (if applicable)
+    file_hash = db.Column(db.String(64), nullable=True, index=True)  # SHA256 hash of uploaded file
+    response_time = db.Column(db.Float, nullable=True)  # Response time in seconds
     
     def __repr__(self):
         return f'<LogEvent {self.method} {self.endpoint} from {self.ip_address}>'
@@ -139,7 +147,13 @@ class LogEvent(db.Model):
             'payload': self.payload,
             'user_agent': self.user_agent,
             'status_code': self.status_code,
-            'timestamp': self.timestamp.isoformat() if self.timestamp else None
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'session_id': self.session_id,
+            'username': self.username,
+            'upload_result': self.upload_result,
+            'filename': self.filename,
+            'file_hash': self.file_hash,
+            'response_time': self.response_time
         }
 
 

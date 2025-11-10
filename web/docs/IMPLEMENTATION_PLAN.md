@@ -215,9 +215,11 @@ source venv/bin/activate
 - [ ] Save file temporarily to `/tmp/uploads` before scanning
 - [ ] Call `antivirus_service.scan_file()` on temp file
 - [ ] **If CLEAN:** Move to `/uploads/safe/`, create DB record, return success
-- [ ] **If INFECTED:** Move to `/uploads/quarantine/`, log detection, notify VM1 API
-- [ ] Extract client IP from request headers (X-Real-IP from nginx)
-- [ ] Log all upload events with IP, filename, scan result, signature
+- [ ] **If INFECTED:** Move to `/uploads/quarantine/`, log detection, notify VM1 API at `http://10.0.0.1:5001/api/malware_alert`
+- [ ] **CRITICAL:** Do NOT extract client IP - VM2 only sees VM1's IP (10.0.0.1)
+- [ ] Send alert to VM1 with: filename, file_hash, signature, timestamp (NO IP)
+- [ ] VM1 correlates with conntrack to find real client IP and blocks it
+- [ ] Log VM1's response for audit (VM1 returns blocked_ip in response)
 - [ ] Handle ClamAV errors gracefully (return 500 if scanner unavailable)
 
 **Test Payloads:** 

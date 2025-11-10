@@ -19,7 +19,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from src.services.database_service import create_log_event
-from src.services.utils import extract_ip_address, truncate_string
+from src.services.utils import truncate_string
 
 logger = logging.getLogger('app')
 
@@ -45,7 +45,8 @@ def init_request_logger(app):
             return
         
         # Extract request details
-        ip_address = extract_ip_address(request)
+        # VM2 only sees VM1's IP (10.0.0.1) - real IPs are handled by VM1
+        ip_address = request.remote_addr or '10.0.0.1'
         method = request.method
         endpoint = request.path
         user_agent = request.headers.get('User-Agent', 'Unknown')
@@ -78,7 +79,8 @@ def init_request_logger(app):
         
         try:
             # Extract request details
-            ip_address = extract_ip_address(request)
+            # VM2 only sees VM1's IP (10.0.0.1) - real IPs are handled by VM1
+            ip_address = request.remote_addr or '10.0.0.1'
             method = request.method
             endpoint = request.path
             user_agent = request.headers.get('User-Agent', 'Unknown')
@@ -114,6 +116,18 @@ def init_request_logger(app):
             if hasattr(g, 'request_start_time'):
                 duration = (datetime.utcnow() - g.request_start_time).total_seconds()
             
+            # Get session ID (for unauthenticated users)
+            from flask import session
+            session_id = session.get('session_id') if 'session_id' in session else None
+            
+            # Get username (for authenticated users)
+            username = session.get('username') if 'username' in session else None
+            
+            # Get upload result if this was a file upload
+            upload_result = g.get('upload_result') if hasattr(g, 'upload_result') else None
+            filename = g.get('upload_filename') if hasattr(g, 'upload_filename') else None
+            file_hash = g.get('upload_file_hash') if hasattr(g, 'upload_file_hash') else None
+            
             # Store in database
             create_log_event(
                 ip_address=ip_address,
@@ -121,7 +135,13 @@ def init_request_logger(app):
                 method=method,
                 payload=payload,
                 user_agent=truncate_string(user_agent, max_length=500),
-                status_code=status_code
+                status_code=status_code,
+                session_id=session_id,
+                username=username,
+                upload_result=upload_result,
+                filename=filename,
+                file_hash=file_hash,
+                response_time=duration
             )
             
             # Log completion

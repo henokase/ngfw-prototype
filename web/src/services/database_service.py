@@ -253,7 +253,13 @@ def create_log_event(
     method: str,
     payload: Optional[str] = None,
     user_agent: Optional[str] = None,
-    status_code: Optional[int] = None
+    status_code: Optional[int] = None,
+    session_id: Optional[str] = None,
+    username: Optional[str] = None,
+    upload_result: Optional[str] = None,
+    filename: Optional[str] = None,
+    file_hash: Optional[str] = None,
+    response_time: Optional[float] = None
 ) -> Optional[LogEvent]:
     """
     Create a new log event
@@ -265,6 +271,12 @@ def create_log_event(
         payload: Request payload/parameters
         user_agent: User agent string
         status_code: Response status code
+        session_id: Session ID for unauthenticated users
+        username: Username for authenticated users
+        upload_result: Upload scan result ('clean', 'infected', 'error')
+        filename: Uploaded filename
+        file_hash: SHA256 hash of uploaded file
+        response_time: Response time in seconds
         
     Returns:
         LogEvent instance if successful, None otherwise
@@ -276,7 +288,13 @@ def create_log_event(
             method=method,
             payload=payload,
             user_agent=user_agent,
-            status_code=status_code
+            status_code=status_code,
+            session_id=session_id,
+            username=username,
+            upload_result=upload_result,
+            filename=filename,
+            file_hash=file_hash,
+            response_time=response_time
         )
         if safe_add(log_event):
             return log_event

@@ -107,28 +107,171 @@ If INFECTED:
 
 ## ⚙️ 4. VM2 → VM1 (Response Automation)
 
-Add a small API endpoint on VM1 (Flask or FastAPI microservice) to handle automatic IP blocking from VM2 when a malicious file is uploaded:
+### 🔴 CRITICAL ARCHITECTURAL RULE
 
-**Example (VM2 → VM1)**:
+**VM2 must NEVER receive, extract, or be aware of real external client IPs.**
 
+**Why:**
+- VM1 is the firewall gateway with full visibility of real source IPs
+- VM2 only receives traffic from VM1 through DNAT (all requests appear from 10.0.0.1)
+- VM1 handles all IP correlation and blocking using its conntrack table
+- Communication is **one-directional**: VM2 → VM1 (never VM1 → VM2 for IP data)
+
+### Infected File Handling Workflow:
+
+**Step 1: VM2 scans file with ClamAV**
 ```python
 # VM2 antivirus_service.py
-if result == "FOUND":
-    requests.post("http://10.0.0.1:5000/api/block_ip", json={"ip": uploader_ip})
+result = scan_file(filepath)
+
+if result['status'] == 'infected':
+    # VM2 does NOT try to identify client IP
+    # Instead, send structured alert to VM1
 ```
 
-**Example (VM1 auto-block API)**:
-
+**Step 2: VM2 sends alert to VM1 Firewall Control API**
 ```python
-# VM1 (ngfw control service)
-@app.route('/api/block_ip', methods=['POST'])
-def block_ip():
-    ip = request.json['ip']
-    os.system(f"sudo nft add element inet firewall blocked_ips {{ {ip} timeout 1h }}")
-    return jsonify({"status": "blocked", "ip": ip})
+# VM2 → VM1 malware notification (NO IP ADDRESS)
+import requests
+import hashlib
+from datetime import datetime
+
+if result['status'] == 'infected':
+    # Calculate file hash
+    file_hash = hashlib.sha256(open(filepath, 'rb').read()).hexdigest()
+    
+    # Send alert to VM1 (10.0.0.1:5001)
+    alert_payload = {
+        'event_type': 'malware_detected',
+        'filename': filename,
+        'timestamp': datetime.utcnow().isoformat(),
+        'result': 'infected',
+        'file_hash': file_hash,
+        'signature': result['signature'],
+        'vm2_source': 'web_upload_scanner'
+    }
+    
+    try:
+        response = requests.post(
+            'http://10.0.0.1:5001/api/malware_alert',
+            json=alert_payload,
+            timeout=5
+        )
+        
+        # Log VM1's response
+        if response.status_code == 200:
+            vm1_response = response.json()
+            logger.info(f"VM1 blocked IP: {vm1_response.get('blocked_ip')} - Reason: {vm1_response.get('reason')}")
+        
+    except Exception as e:
+        logger.error(f"Failed to notify VM1: {str(e)}")
 ```
 
-This creates **cross-VM adaptivity** — the moment a file is flagged on VM2, its source IP is dynamically blocked in VM1.
+**Step 3: VM1 correlates event with conntrack and blocks IP**
+```python
+# VM1 Firewall Control API (10.0.0.1:5001)
+@app.route('/api/malware_alert', methods=['POST'])
+def malware_alert():
+    data = request.json
+    
+    # Extract alert details
+    filename = data['filename']
+    file_hash = data['file_hash']
+    signature = data['signature']
+    timestamp = data['timestamp']
+    
+    # Correlate with conntrack to find real client IP
+    # VM1 knows which external IP is currently connected to VM2
+    client_ip = correlate_conntrack_to_vm2_connection()
+    
+    # Block the real client IP in nftables
+    if client_ip and client_ip not in ['10.0.0.1', '127.0.0.1']:
+        os.system(f"sudo nft add element inet firewall blocked_ips {{ {client_ip} timeout 1h }}")
+        
+        # Log the block
+        logger.warning(f"Blocked IP {client_ip} - Malware upload: {signature}")
+        
+        # Return confirmation to VM2
+        return jsonify({
+            'status': 'blocked',
+            'blocked_ip': client_ip,  # VM2 logs this but doesn't use it
+            'reason': 'malware_upload',
+            'signature': signature,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    
+    return jsonify({'status': 'no_action', 'reason': 'could not identify client'})
+
+def correlate_conntrack_to_vm2_connection():
+    """
+    Use conntrack to find the real source IP of the current connection to VM2
+    
+    Example conntrack entry:
+    tcp 6 299 ESTABLISHED src=192.168.1.100 dst=10.0.2.15 sport=54321 dport=80 \
+        src=10.0.0.5 dst=10.0.0.1 sport=5000 dport=12345
+    
+    This shows: External client 192.168.1.100 → VM1 → VM2 (10.0.0.5)
+    """
+    import subprocess
+    
+    # Get active connections to VM2
+    result = subprocess.run(
+        ['sudo', 'conntrack', '-L', '-d', '10.0.0.5'],
+        capture_output=True,
+        text=True
+    )
+    
+    # Parse conntrack output to extract original source IP
+    # Implementation depends on conntrack output format
+    # Return the external IP that initiated the connection
+    
+    return parsed_client_ip
+```
+
+**Step 4: VM2 logs VM1's response (audit only)**
+```python
+# VM2 logs the block confirmation but does NOT perform blocking itself
+logger.info(f"VM1 response: Blocked IP {vm1_response['blocked_ip']} for malware: {signature}")
+
+# Store in database for audit trail
+create_log_event(
+    ip_address='10.0.0.1',  # VM2 only sees VM1's IP
+    endpoint='/upload',
+    method='POST',
+    upload_result='infected',
+    filename=filename,
+    file_hash=file_hash,
+    payload=f"Malware detected: {signature}. VM1 blocked attacker."
+)
+```
+
+### Summary of Correct IP Flow:
+
+```
+1. Client (192.168.1.100) → VM1 (10.0.2.15)
+   ↓
+2. VM1 DNAT → VM2 (10.0.0.5) [VM2 sees source as 10.0.0.1]
+   ↓
+3. VM2 scans file → INFECTED
+   ↓
+4. VM2 → VM1 API: {filename, hash, signature, timestamp}
+   (NO IP ADDRESS SENT)
+   ↓
+5. VM1 correlates with conntrack → finds 192.168.1.100
+   ↓
+6. VM1 blocks 192.168.1.100 in nftables
+   ↓
+7. VM1 → VM2: {"blocked_ip": "192.168.1.100", "status": "blocked"}
+   ↓
+8. VM2 logs confirmation (audit only, no action)
+```
+
+### Key Principles:
+- **VM2 never extracts or uses real client IPs**
+- **VM1 retains full IP visibility and control**
+- **Communication is one-directional for alerts: VM2 → VM1**
+- **VM1 uses conntrack for IP correlation**
+- **VM2 only logs VM1's responses for audit purposes**
 
 ---
 

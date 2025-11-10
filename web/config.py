@@ -73,7 +73,8 @@ class Config:
     
     # Middleware Configuration
     ENABLE_RATE_LIMIT = True  # Enable rate limiting
-    RATE_LIMIT_PER_MINUTE = 100  # Max requests per minute per IP
+    RATE_LIMIT_PER_MINUTE = 100  # Max requests per minute per session/account
+    GLOBAL_RATE_LIMIT_PER_SECOND = 50  # Max total requests per second site-wide (flood protection)
     ENABLE_SECURITY_HEADERS = True  # Enable security headers
     ENABLE_REQUEST_LOGGING = True  # Enable request logging to database
 

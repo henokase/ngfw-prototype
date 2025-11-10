@@ -262,11 +262,16 @@ This document tracks all implementations that have been **completed and verified
 **Status:** ✅ Complete
 
 #### Completed Tasks (Phase 4):
-1. ✅ **request_logger.py Created** (6.6 KB)
+1. ✅ **request_logger.py Created** (6.6 KB) - **UPDATED**
    - Logs all incoming HTTP requests to database
-   - Captures IP, method, endpoint, user agent, payload
-   - Stores in LogEvent table for traffic analysis
-   - Extracts client IP from X-Real-IP or X-Forwarded-For headers
+   - Captures method, endpoint, user agent, payload
+   - **VM2 only logs VM1's IP (10.0.0.1)** - real IPs handled by VM1
+   - Stores in LogEvent table with enhanced columns:
+     - session_id (for unauthenticated users)
+     - username (for authenticated users)
+     - upload_result (clean/infected/error)
+     - filename and file_hash (for uploads)
+     - response_time (in seconds)
    - Tracks request duration
    - Provides request statistics and recent requests functions
    - Skips logging for static files (optimization)
@@ -283,24 +288,47 @@ This document tracks all implementations that have been **completed and verified
    - Configurable enable/disable option
    - Headers validation function
 
-3. ✅ **rate_limit.py Created** (9.7 KB)
+3. ✅ **rate_limit.py Created** (9.7 KB) - **UPDATED**
+   - **Three-tier rate limiting system:**
+     1. **Session-based** (unauthenticated users): 100 req/min per session
+     2. **Account-based** (authenticated users): 100 req/min per username
+     3. **Global flood protection**: 50 req/sec site-wide
    - In-memory rate limiting using sliding window algorithm
-   - Tracks requests per IP address
-   - Configurable threshold (default: 100 requests/minute)
+   - Tracks requests by session_id or username (NOT by IP)
+   - Auto-generates session IDs for unauthenticated users
    - Returns 429 Too Many Requests when limit exceeded
+   - Returns 503 Service Unavailable when global limit exceeded
    - Adds X-RateLimit-* headers to responses
    - Automatic cleanup of old entries
    - Thread-safe implementation with locks
    - Logs rate limit violations to security logger
    - Provides statistics and reset functions
 
-4. ✅ **app.py Updated** - Middleware Registration
+4. ✅ **models.py Updated** - Enhanced LogEvent Table
+   - Added session_id column (VARCHAR 255, indexed)
+   - Added username column (VARCHAR 100, indexed)
+   - Added upload_result column (VARCHAR 20)
+   - Added filename column (VARCHAR 255)
+   - Added file_hash column (VARCHAR 64, indexed)
+   - Added response_time column (FLOAT)
+   - Updated to_dict() method to include new fields
+
+5. ✅ **database_service.py Updated** - Enhanced Logging
+   - Updated create_log_event() to accept new parameters
+   - Supports session_id, username, upload_result, filename, file_hash, response_time
+
+6. ✅ **config.py Updated** - Middleware Configuration
+   - Added RATE_LIMIT_PER_MINUTE = 100 (per session/account)
+   - Added GLOBAL_RATE_LIMIT_PER_SECOND = 50 (site-wide flood protection)
+   - Added ENABLE_SECURITY_HEADERS = True
+   - Added ENABLE_REQUEST_LOGGING = True
+
+7. ✅ **app.py Updated** - Middleware Registration
    - Imported all middleware modules
    - Registered rate_limiter (before_request)
    - Registered request_logger (before/after_request)
    - Registered security_headers (after_request)
    - Added error handling for each middleware
-   - Updated configuration in config.py
    - Middleware order: rate_limit → request_logger → security_headers
 
 #### Verification (Phase 4):
@@ -315,6 +343,31 @@ This document tracks all implementations that have been **completed and verified
 - [x] Error handling prevents middleware failures from breaking app
 - [x] Configuration options added to config.py
 - [x] Middleware ready for use with routes
+- [x] Database schema updated with new LogEvent columns
+- [x] Session-based rate limiting implemented
+- [x] Global flood protection implemented
+
+#### 🔴 Critical Architectural Decisions (Phase 4):
+
+**VM1/VM2 IP Handling:**
+- **VM2 does NOT extract or use real client IPs**
+- All requests to VM2 appear from VM1's IP (10.0.0.1)
+- VM2 logs only VM1's IP in database
+- Real IP tracking and blocking handled exclusively by VM1
+- Communication is one-directional: VM2 → VM1 for alerts only
+
+**Rate Limiting Strategy:**
+- Changed from IP-based to session/account-based
+- Prevents issues with NAT translation
+- Three-tier system: session, account, and global limits
+- Session IDs auto-generated for unauthenticated users
+
+**Malware Detection Workflow:**
+- VM2 scans files and sends alerts to VM1 (NO IP address sent)
+- Alert includes: filename, file_hash, signature, timestamp
+- VM1 correlates with conntrack to find real client IP
+- VM1 blocks real IP in nftables
+- VM1 returns confirmation to VM2 (VM2 logs for audit only)
 
 ---
 
