@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Adaptive NGFW Test Website{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="jumbotron bg-dark text-white p-5 rounded mb-4">
+    <h1 class="display-4"><i class="bi bi-shield-exclamation"></i> Adaptive NGFW Test Website</h1>
+    <p class="lead">A deliberately vulnerable web application designed to test Next-Generation Firewall detection, inspection, and response capabilities.</p>
+    <hr class="my-4 bg-secondary">
+    <p>This application contains <strong>intentional security vulnerabilities</strong> for educational and testing purposes. Use the vulnerability endpoints below to test your NGFW's detection capabilities.</p>
+    <div class="alert alert-warning" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i> <strong>Architecture:</strong> VM1 (Firewall Gateway) → VM2 (This Web Server at 10.0.0.5)
+    </div>
+</div>
+
+<!-- Statistics Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-activity text-primary" style="font-size: 2rem;"></i>
+                <h5 class="card-title mt-2">Total Requests</h5>
+                <p class="card-text display-6">{{ stats.total_requests if stats else 0 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-file-earmark-arrow-up text-info" style="font-size: 2rem;"></i>
+                <h5 class="card-title mt-2">File Uploads</h5>
+                <p class="card-text display-6">{{ stats.total_uploads if stats else 0 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-bug-fill text-danger" style="font-size: 2rem;"></i>
+                <h5 class="card-title mt-2">Infected Files</h5>
+                <p class="card-text display-6">{{ stats.infected_files if stats else 0 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-people-fill text-success" style="font-size: 2rem;"></i>
+                <h5 class="card-title mt-2">Total Users</h5>
+                <p class="card-text display-6">{{ stats.total_users if stats else 0 }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vulnerability Cards -->
+<h2 class="mb-4"><i class="bi bi-bug"></i> Available Vulnerability Tests</h2>
+
+<div class="row">
+    <!-- SQL Injection -->
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-key"></i> SQL Injection</h5>
+                <span class="badge bg-dark">CRITICAL</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Test SQL injection vulnerabilities in the login form. Raw SQL queries allow authentication bypass.</p>
+                <p class="text-muted"><small><strong>Endpoint:</strong> /login</small></p>
+                <p class="text-muted"><small><strong>Try:</strong> <code>admin' OR '1'='1'--</code></small></p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('auth.login') }}" class="btn btn-danger w-100">
+                    <i class="bi bi-arrow-right-circle"></i> Test Now
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload (Malware) -->
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Malware Upload</h5>
+                <span class="badge bg-dark">CRITICAL</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Upload files with no type validation. ClamAV scans for malware. Infected files trigger VM1 blocking.</p>
+                <p class="text-muted"><small><strong>Endpoint:</strong> /upload</small></p>
+                <p class="text-muted"><small><strong>Try:</strong> EICAR test file</small></p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('upload.upload_form') }}" class="btn btn-danger w-100">
+                    <i class="bi bi-arrow-right-circle"></i> Test Now
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Injection -->
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-terminal"></i> Command Injection</h5>
+                <span class="badge bg-dark">CRITICAL</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Execute system commands through ping utility. No input sanitization allows command chaining.</p>
+                <p class="text-muted"><small><strong>Endpoint:</strong> /cmd</small></p>
+                <p class="text-muted"><small><strong>Try:</strong> <code>8.8.8.8; whoami</code></small></p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('cmd.command_form') }}" class="btn btn-danger w-100">
+                    <i class="bi bi-arrow-right-circle"></i> Test Now
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Path Traversal -->
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-folder2-open"></i> Path Traversal</h5>
+                <span class="badge bg-dark">HIGH</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Read arbitrary files from the server. No path sanitization allows directory traversal attacks.</p>
+                <p class="text-muted"><small><strong>Endpoint:</strong> /file</small></p>
+                <p class="text-muted"><small><strong>Try:</strong> <code>../../etc/passwd</code></small></p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('file.file_viewer_form') }}" class="btn btn-warning w-100">
+                    <i class="bi bi-arrow-right-circle"></i> Test Now
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- XSS (Cross-Site Scripting) -->
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-code-slash"></i> XSS (Stored & Reflected)</h5>
+                <span class="badge bg-dark">HIGH</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Submit feedback with malicious scripts. No output escaping allows stored and reflected XSS attacks.</p>
+                <p class="text-muted"><small><strong>Endpoint:</strong> /feedback</small></p>
+                <p class="text-muted"><small><strong>Try:</strong> <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code></small></p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('xss.feedback_page') }}" class="btn btn-warning w-100">
+                    <i class="bi bi-arrow-right-circle"></i> Test Now
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- XXE (XML External Entity) -->
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-file-code"></i> XXE Attack</h5>
+                <span class="badge bg-dark">HIGH</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Parse XML with external entity processing enabled. Allows reading arbitrary files via XXE.</p>
+                <p class="text-muted"><small><strong>Endpoint:</strong> /api/xml</small></p>
+                <p class="text-muted"><small><strong>Try:</strong> XXE payload</small></p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('xml.xml_form') }}" class="btn btn-warning w-100">
+                    <i class="bi bi-arrow-right-circle"></i> Test Now
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Redirect -->
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-arrow-right-circle"></i> Open Redirect</h5>
+                <span class="badge bg-dark">MEDIUM</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Redirect to user-supplied URLs without validation. Can be used for phishing attacks.</p>
+                <p class="text-muted"><small><strong>Endpoint:</strong> /redirect</small></p>
+                <p class="text-muted"><small><strong>Try:</strong> <code>?url=http://malicious.com</code></small></p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('redirect.redirect_page') }}" class="btn btn-info w-100">
+                    <i class="bi bi-arrow-right-circle"></i> Test Now
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Information -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> How It Works</h5>
+            </div>
+            <div class="card-body">
+                <h6>VM1/VM2 Architecture:</h6>
+                <ol>
+                    <li><strong>VM1 (Firewall Gateway):</strong> Inspects all traffic with nftables + Suricata DPI</li>
+                    <li><strong>VM2 (This Web Server):</strong> Runs vulnerable Flask application</li>
+                    <li><strong>Traffic Flow:</strong> Client → VM1 (inspection) → VM2 (processing)</li>
+                    <li><strong>Malware Detection:</strong> VM2 scans files with ClamAV, alerts VM1 to block infected uploaders</li>
+                    <li><strong>Adaptive Response:</strong> VM1 dynamically blocks malicious IPs based on detected attacks</li>
+                </ol>
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-lightbulb"></i> <strong>Note:</strong> VM2 never sees real client IPs (only VM1's IP: 10.0.0.1). 
+                    VM1 correlates malware alerts with its conntrack table to identify and block real attackers.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

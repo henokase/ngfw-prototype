@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}XSS Test - NGFW Test Website{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="bi bi-code-slash"></i> Feedback - XSS Test</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h5><i class="bi bi-bug-fill"></i> Vulnerability: Stored & Reflected XSS</h5>
+                    <p><strong>Stored XSS Try:</strong> <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code></p>
+                    <p><strong>Reflected XSS Try:</strong> Search with <code>&lt;img src=x onerror=alert('XSS')&gt;</code></p>
+                </div>
+
+                <form method="POST" action="{{ url_for('xss.submit_feedback') }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label"><i class="bi bi-person"></i> Name</label>
+                        <input type="text" class="form-control" id="name" name="name" value="Anonymous">
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label"><i class="bi bi-chat-text"></i> Message</label>
+                        <textarea class="form-control" id="message" name="message" rows="4" required
+                                  placeholder="Enter your feedback (try XSS payload)"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-warning btn-lg w-100">
+                        <i class="bi bi-send"></i> Submit Feedback
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Search Box for Reflected XSS -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-search"></i> Search Feedback (Reflected XSS)</h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('xss.feedback_page') }}">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="search" 
+                               placeholder="Search feedback..." value="{{ search_query }}">
+                        <button class="btn btn-info" type="submit">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </div>
+                </form>
+                {% if search_query %}
+                <p class="mt-2">Search results for: {{ search_query | safe }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Display Feedback -->
+        <div class="card mt-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="bi bi-chat-dots"></i> All Feedback</h5>
+            </div>
+            <div class="card-body">
+                {% if feedback_entries %}
+                    {% for feedback in feedback_entries %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="bi bi-person-circle"></i> {{ feedback.name }}
+                                <small class="float-end">{{ feedback.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </h6>
+                            <!-- VULNERABILITY: Using | safe filter to allow XSS -->
+                            <p class="card-text">{{ feedback.message | safe }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No feedback yet. Be the first to submit!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-lightbulb"></i> XSS Payloads</h5>
+            </div>
+            <div class="card-body">
+                <h6>Stored XSS:</h6>
+                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code></pre>
+                
+                <h6 class="mt-3">Image XSS:</h6>
+                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;img src=x onerror=alert('XSS')&gt;</code></pre>
+                
+                <h6 class="mt-3">SVG XSS:</h6>
+                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;svg onload=alert('XSS')&gt;</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

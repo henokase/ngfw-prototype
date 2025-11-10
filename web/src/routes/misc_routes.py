@@ -32,7 +32,18 @@ def index():
     Returns:
         HTML homepage
     """
-    return render_template('index.html')
+    try:
+        # Gather basic statistics for homepage
+        stats = {
+            'total_requests': LogEvent.query.count(),
+            'total_uploads': UploadedFile.query.count(),
+            'infected_files': UploadedFile.query.filter_by(scan_result='infected').count(),
+            'total_users': User.query.count()
+        }
+        return render_template('index.html', stats=stats)
+    except Exception as e:
+        logger.error(f"Error loading homepage: {str(e)}")
+        return render_template('index.html', stats=None)
 
 
 @misc_bp.route('/about', methods=['GET'])

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Adaptive NGFW Test Website - Intentionally Vulnerable Application">
+    <meta name="author" content="NGFW Test Project">
+    <title>{% block title %}Adaptive NGFW Test Website{% endblock %}</title>
+    
+    <!-- Bootstrap 5.3.0 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Security Warning Banner -->
+    <div class="alert alert-danger mb-0 text-center border-0 rounded-0" role="alert">
+        <strong><i class="bi bi-exclamation-triangle-fill"></i> SECURITY WARNING:</strong> 
+        This is an <strong>intentionally vulnerable</strong> application for testing purposes only. 
+        <strong>DO NOT</strong> deploy to production or public internet!
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('misc.index') }}">
+                <i class="bi bi-shield-exclamation"></i> NGFW Test Site
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('misc.index') }}">
+                            <i class="bi bi-house-door"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="vulnerabilitiesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-bug"></i> Vulnerabilities
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="vulnerabilitiesDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.login') }}">
+                                <i class="bi bi-key text-danger"></i> SQL Injection (Login)
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('upload.upload_form') }}">
+                                <i class="bi bi-file-earmark-arrow-up text-danger"></i> File Upload (Malware)
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('cmd.command_form') }}">
+                                <i class="bi bi-terminal text-danger"></i> Command Injection
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('file.file_viewer_form') }}">
+                                <i class="bi bi-folder2-open text-warning"></i> Path Traversal
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('xss.feedback_page') }}">
+                                <i class="bi bi-code-slash text-warning"></i> XSS (Feedback)
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('xml.xml_form') }}">
+                                <i class="bi bi-file-code text-warning"></i> XXE (XML)
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('redirect.redirect_page') }}">
+                                <i class="bi bi-arrow-right-circle text-info"></i> Open Redirect
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('misc.statistics') }}">
+                            <i class="bi bi-graph-up"></i> Statistics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('misc.about') }}">
+                            <i class="bi bi-info-circle"></i> About
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('misc.help_page') }}">
+                            <i class="bi bi-question-circle"></i> Help
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    {% if session.get('logged_in') %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.profile') }}">
+                                <i class="bi bi-person-circle"></i> {{ session.get('username', 'User') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.logout') }}">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.login') }}">
+                                <i class="bi bi-box-arrow-in-right"></i> Login
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.register') }}">
+                                <i class="bi bi-person-plus"></i> Register
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container my-4">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {% if category == 'danger' %}
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        {% elif category == 'success' %}
+                            <i class="bi bi-check-circle-fill"></i>
+                        {% elif category == 'warning' %}
+                            <i class="bi bi-exclamation-circle-fill"></i>
+                        {% else %}
+                            <i class="bi bi-info-circle-fill"></i>
+                        {% endif %}
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white mt-5 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5><i class="bi bi-shield-exclamation"></i> NGFW Test Website</h5>
+                    <p class="text-muted">An intentionally vulnerable web application designed to test Next-Generation Firewall detection and response capabilities.</p>
+                </div>
+                <div class="col-md-4">
+                    <h5><i class="bi bi-link-45deg"></i> Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{{ url_for('misc.index') }}" class="text-white-50">Home</a></li>
+                        <li><a href="{{ url_for('misc.about') }}" class="text-white-50">About</a></li>
+                        <li><a href="{{ url_for('misc.help_page') }}" class="text-white-50">Help</a></li>
+                        <li><a href="{{ url_for('misc.statistics') }}" class="text-white-50">Statistics</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5><i class="bi bi-exclamation-triangle"></i> Warning</h5>
+                    <p class="text-danger">
+                        <strong>FOR TESTING ONLY!</strong><br>
+                        This application contains intentional security vulnerabilities. 
+                        Never deploy to production environments.
+                    </p>
+                </div>
+            </div>
+            <hr class="bg-secondary">
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <p class="mb-0 text-muted">
+                        &copy; 2025 Adaptive NGFW Test Project | 
+                        <span class="text-warning">Educational Use Only</span> | 
+                        VM2 Web Server (10.0.0.5)
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5.3.0 JS Bundle (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+    
+    <!-- Custom Scripts -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

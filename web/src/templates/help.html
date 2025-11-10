@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Help - NGFW Test Website{% endblock %}
+
+{% block content %}
+<h1><i class="bi bi-question-circle"></i> Help & Usage Guide</h1>
+<hr>
+
+<div class="accordion" id="helpAccordion">
+    <!-- SQL Injection -->
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#sqlHelp">
+                <i class="bi bi-key text-danger"></i> &nbsp; SQL Injection (Login)
+            </button>
+        </h2>
+        <div id="sqlHelp" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
+            <div class="accordion-body">
+                <p><strong>Endpoint:</strong> <code>/login</code></p>
+                <p><strong>Payload:</strong> <code>admin' OR '1'='1'--</code></p>
+                <p><strong>Expected Result:</strong> Authentication bypass, successful login</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload -->
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#uploadHelp">
+                <i class="bi bi-file-earmark-arrow-up text-danger"></i> &nbsp; File Upload (Malware)
+            </button>
+        </h2>
+        <div id="uploadHelp" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+            <div class="accordion-body">
+                <p><strong>Endpoint:</strong> <code>/upload</code></p>
+                <p><strong>Test File:</strong> EICAR test file</p>
+                <p><strong>EICAR Content:</strong></p>
+                <pre class="bg-dark text-light p-2 rounded">X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*</pre>
+                <p><strong>Expected Result:</strong> File quarantined, VM1 notified, IP blocked</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Injection -->
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#cmdHelp">
+                <i class="bi bi-terminal text-danger"></i> &nbsp; Command Injection
+            </button>
+        </h2>
+        <div id="cmdHelp" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+            <div class="accordion-body">
+                <p><strong>Endpoint:</strong> <code>/cmd</code></p>
+                <p><strong>Payload:</strong> <code>8.8.8.8; whoami</code></p>
+                <p><strong>Expected Result:</strong> Ping output + username from whoami command</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Path Traversal -->
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#fileHelp">
+                <i class="bi bi-folder2-open text-warning"></i> &nbsp; Path Traversal
+            </button>
+        </h2>
+        <div id="fileHelp" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+            <div class="accordion-body">
+                <p><strong>Endpoint:</strong> <code>/file</code></p>
+                <p><strong>Payload:</strong> <code>../../etc/passwd</code></p>
+                <p><strong>Expected Result:</strong> Contents of /etc/passwd file displayed</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- XSS -->
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#xssHelp">
+                <i class="bi bi-code-slash text-warning"></i> &nbsp; XSS (Cross-Site Scripting)
+            </button>
+        </h2>
+        <div id="xssHelp" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+            <div class="accordion-body">
+                <p><strong>Endpoint:</strong> <code>/feedback</code></p>
+                <p><strong>Stored XSS Payload:</strong> <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code></p>
+                <p><strong>Reflected XSS:</strong> Use search box with XSS payload</p>
+                <p><strong>Expected Result:</strong> JavaScript alert box appears</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- XXE -->
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#xxeHelp">
+                <i class="bi bi-file-code text-warning"></i> &nbsp; XXE (XML External Entity)
+            </button>
+        </h2>
+        <div id="xxeHelp" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+            <div class="accordion-body">
+                <p><strong>Endpoint:</strong> <code>/api/xml</code></p>
+                <p><strong>Payload:</strong></p>
+                <pre class="bg-dark text-light p-2 rounded">&lt;!DOCTYPE foo [&lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;]&gt;
+&lt;data&gt;&xxe;&lt;/data&gt;</pre>
+                <p><strong>Expected Result:</strong> Contents of /etc/passwd in parsed XML data</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Redirect -->
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#redirectHelp">
+                <i class="bi bi-arrow-right-circle text-info"></i> &nbsp; Open Redirect
+            </button>
+        </h2>
+        <div id="redirectHelp" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+            <div class="accordion-body">
+                <p><strong>Endpoint:</strong> <code>/redirect?url=http://example.com</code></p>
+                <p><strong>Payload:</strong> <code>http://malicious.com</code></p>
+                <p><strong>Expected Result:</strong> Redirected to specified URL</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

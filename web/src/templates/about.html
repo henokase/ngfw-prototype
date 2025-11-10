@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}About - NGFW Test Website{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1><i class="bi bi-info-circle"></i> About This Project</h1>
+        <hr>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>Adaptive NGFW Test Website</h3>
+                <p class="lead">A deliberately vulnerable web application designed to test Next-Generation Firewall (NGFW) detection, inspection, and adaptive response capabilities.</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Architecture</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Dual-VM Topology:</h6>
+                        <ul>
+                            <li><strong>VM1 (Firewall Gateway):</strong> nftables + Suricata DPI</li>
+                            <li><strong>VM2 (Web Server):</strong> Flask application (this server)</li>
+                        </ul>
+                        <h6>Traffic Flow:</h6>
+                        <pre class="bg-dark text-light p-2 rounded small">Client → VM1 (Inspection) → VM2 (Processing)</pre>
+                        <p class="small">VM2 IP: 10.0.0.5 | VM1 IP: 10.0.0.1</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="bi bi-bug"></i> Vulnerabilities</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><span class="badge bg-danger">CRITICAL</span> SQL Injection</li>
+                            <li><span class="badge bg-danger">CRITICAL</span> Command Injection</li>
+                            <li><span class="badge bg-danger">CRITICAL</span> Unrestricted File Upload</li>
+                            <li><span class="badge bg-warning">HIGH</span> Path Traversal</li>
+                            <li><span class="badge bg-warning">HIGH</span> XSS (Stored & Reflected)</li>
+                            <li><span class="badge bg-warning">HIGH</span> XXE (XML External Entity)</li>
+                            <li><span class="badge bg-info">MEDIUM</span> Open Redirect</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Malware Detection</h5>
+            </div>
+            <div class="card-body">
+                <h6>ClamAV Integration:</h6>
+                <p>All uploaded files are scanned with ClamAV antivirus engine.</p>
+                <h6>Adaptive Response:</h6>
+                <ol>
+                    <li>VM2 detects infected file</li>
+                    <li>VM2 sends alert to VM1 (filename, hash, signature - NO IP)</li>
+                    <li>VM1 correlates with conntrack table</li>
+                    <li>VM1 dynamically blocks real attacker IP</li>
+                </ol>
+                <div class="alert alert-warning">
+                    <strong>Note:</strong> VM2 never sees real client IPs due to NAT translation by VM1.
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Important Warning</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-danger"><strong>FOR EDUCATIONAL AND TESTING PURPOSES ONLY!</strong></p>
+                <p>This application contains <strong>intentional security vulnerabilities</strong>. It should:</p>
+                <ul>
+                    <li><strong>NEVER</strong> be deployed to production environments</li>
+                    <li><strong>NEVER</strong> be exposed to the public internet</li>
+                    <li><strong>ONLY</strong> be used in controlled lab environments</li>
+                    <li><strong>ONLY</strong> be used for security testing and education</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Success - NGFW Test Website{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                <h2 class="mt-4">Success!</h2>
+                <p class="lead">{{ message }}</p>
+                <a href="{{ redirect_url }}" class="btn btn-success btn-lg mt-3">
+                    <i class="bi bi-arrow-left"></i> Continue
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

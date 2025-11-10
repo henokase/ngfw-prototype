@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Error - NGFW Test Website{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-x-circle-fill text-danger" style="font-size: 5rem;"></i>
+                <h2 class="mt-4">Error</h2>
+                <p class="lead">{{ error }}</p>
+                <a href="{{ url_for('misc.index') }}" class="btn btn-primary btn-lg mt-3">
+                    <i class="bi bi-house-door"></i> Go Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
