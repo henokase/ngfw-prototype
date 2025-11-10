@@ -1,237 +1,208 @@
 # 🎯 Next Action - Immediate Implementation Steps
 
-**Last Updated:** November 6, 2025  
+**Last Updated:** November 10, 2025  
 **Current Phase:** Phase 1 - Project Foundation & Setup  
-**Status:** Ready to Begin
+**Current Step:** Step 1.2 - Create Base Project Structure  
+**Status:** Step 1.1 Complete - Ready for Step 1.2
 
 ---
 
 ## 🚀 Immediate Next Steps
 
-### **Phase 1, Step 1.1: Environment Setup**
+### **Phase 1, Step 1.2: Create Base Project Structure**
 
-This is the **first critical step** to begin implementation. Complete these tasks in order:
-
----
-
-## ✅ Task 1: Create Python Virtual Environment
-
-**Location:** VM2 (Ubuntu Server - Web Server)  
-**Priority:** Critical  
-**Estimated Time:** 5-10 minutes
-
-### Commands to Execute:
-
-```bash
-# Navigate to the web project directory
-cd ~/ngfw-prototype/web
-
-# Create Python virtual environment
-python3 -m venv venv
-
-# Activate the virtual environment
-source venv/bin/activate
-
-# Verify Python version
-python --version
-```
-
-**Expected Output:**
-- Virtual environment created in `~/ngfw-prototype/web/venv/`
-- Prompt should show `(venv)` prefix
-- Python 3.x version displayed
+With the environment setup complete, the next step is to create the core application files. Complete these tasks in order:
 
 ---
 
-## ✅ Task 2: Create requirements.txt
+## ✅ Task 1: Create app.py (Flask Application Entry Point)
 
-**Location:** `~/ngfw-prototype/web/requirements.txt`  
+**Location:** `~/ngfw-prototype/web/app.py`  
 **Priority:** Critical  
+**Estimated Time:** 10-15 minutes
+
+### Purpose:
+This is the main Flask application entry point that initializes the app, registers blueprints, and configures error handlers.
+
+### Key Components:
+- Initialize Flask application
+- Load configuration from `config.py`
+- Initialize SQLAlchemy database
+- Register route blueprints
+- Configure error handlers (404, 500)
+- Set up logging
+- Register middleware
+
+### Implementation Notes:
+- Import Flask and extensions
+- Create app factory pattern (optional) or direct instantiation
+- Register all route blueprints from `src/routes/`
+- Add custom error handlers
+- Configure CORS if needed
+- Set up before_request and after_request hooks
+
+---
+
+## ✅ Task 2: Create config.py (Configuration Management)
+
+**Location:** `~/ngfw-prototype/web/config.py`  
+**Priority:** Critical  
+**Estimated Time:** 10 minutes
+
+### Purpose:
+Centralized configuration management for the Flask application.
+
+### Key Components:
+- Define Flask app configuration class
+- Set database URI (SQLite: `sqlite:///instance/database.db`)
+- Configure upload folders:
+  - `UPLOAD_FOLDER = 'uploads/safe'`
+  - `QUARANTINE_FOLDER = 'uploads/quarantine'`
+  - `TEMP_UPLOAD_FOLDER = '/tmp/uploads'`
+- Set secret key from environment variable
+- Define `MAX_CONTENT_LENGTH` for file uploads (16MB)
+- Add ClamAV configuration (host, port)
+- Configure VM1 API settings
+- Set logging levels and file paths
+- Add environment-based configs (development/production)
+
+### Implementation Notes:
+- Use `os.environ.get()` to load from .env file
+- Create separate config classes for dev/prod if needed
+- Use `python-dotenv` to load environment variables
+
+---
+
+## ✅ Task 3: Create models.py (Database Models)
+
+**Location:** `~/ngfw-prototype/web/models.py`  
+**Priority:** Critical  
+**Estimated Time:** 15-20 minutes
+
+### Purpose:
+Define all database models using SQLAlchemy ORM.
+
+### Required Models:
+
+1. **User Model**
+   - `id` (Integer, Primary Key)
+   - `username` (String, Unique, Not Null)
+   - `password` (String, Not Null) - stored as plain text for testing
+   - `email` (String)
+   - `created_at` (DateTime, default=now)
+
+2. **Feedback Model**
+   - `id` (Integer, Primary Key)
+   - `user_id` (Integer, Foreign Key to User)
+   - `message` (Text, Not Null)
+   - `created_at` (DateTime, default=now)
+
+3. **UploadedFile Model**
+   - `id` (Integer, Primary Key)
+   - `filename` (String, Not Null)
+   - `filepath` (String, Not Null)
+   - `scan_status` (String) - 'clean', 'infected', 'error'
+   - `scan_result` (Text) - ClamAV result details
+   - `signature_name` (String) - Malware signature if infected
+   - `uploader_ip` (String) - Client IP address
+   - `uploaded_at` (DateTime, default=now)
+
+4. **LogEvent Model**
+   - `id` (Integer, Primary Key)
+   - `ip_address` (String)
+   - `endpoint` (String)
+   - `method` (String) - GET, POST, etc.
+   - `payload` (Text) - Request data
+   - `timestamp` (DateTime, default=now)
+
+### Implementation Notes:
+- Import SQLAlchemy from flask_sqlalchemy
+- Define relationships between models
+- Add `__repr__` methods for debugging
+- Use appropriate column types and constraints
+
+---
+
+## ✅ Task 4: Create wsgi.py (Production Entry Point)
+
+**Location:** `~/ngfw-prototype/web/wsgi.py`  
+**Priority:** Medium  
 **Estimated Time:** 5 minutes
 
-### Create the file with these dependencies:
+### Purpose:
+WSGI entry point for production deployment with Gunicorn.
 
-```txt
-Flask==3.0.2
-Flask-SQLAlchemy==3.1.1
-Werkzeug==3.0.2
-PyClamd==0.4.0
-requests==2.32.3
-gunicorn==21.2.0
-lxml==5.2.1
-python-dotenv==1.0.1
-```
+### Key Components:
+- Import the Flask app from `app.py`
+- Expose the app object for Gunicorn
+- Add production-specific configurations if needed
 
-### Command to Create:
+### Implementation Notes:
+- Simple file that imports and exposes the Flask app
+- Used by Gunicorn: `gunicorn --bind 0.0.0.0:5000 wsgi:app`
+- Can add production logging configuration here
 
-```bash
-cat > requirements.txt << 'EOF'
-Flask==3.0.2
-Flask-SQLAlchemy==3.1.1
-Werkzeug==3.0.2
-PyClamd==0.4.0
-requests==2.32.3
-gunicorn==21.2.0
-lxml==5.2.1
-python-dotenv==1.0.1
-EOF
+### Example Structure:
+```python
+from app import app
+
+if __name__ == "__main__":
+    app.run()
 ```
 
 ---
 
-## ✅ Task 3: Install Dependencies
+## ✅ Task 5: Verify Base Structure
 
-**Location:** VM2 (with venv activated)  
-**Priority:** Critical  
-**Estimated Time:** 5-10 minutes
+**Location:** `~/ngfw-prototype/web/`  
+**Priority:** High  
+**Estimated Time:** 5 minutes
 
-### Commands to Execute:
+### Verification Steps:
 
 ```bash
-# Ensure venv is activated
+# Navigate to project directory
+cd ~/ngfw-prototype/web
+
+# Activate virtual environment
 source venv/bin/activate
 
-# Upgrade pip
-pip install --upgrade pip
+# Verify all base files exist
+ls -la app.py config.py models.py wsgi.py requirements.txt .env .gitignore
 
-# Install all dependencies
-pip install -r requirements.txt
+# Test Flask app initialization (should not error)
+python -c "from app import app; print('Flask app initialized successfully')"
 
-# Verify installations
-pip list
+# Verify database models can be imported
+python -c "from models import User, Feedback, UploadedFile, LogEvent; print('Models imported successfully')"
 ```
 
 **Expected Output:**
-- All packages installed successfully
-- No error messages
-- `pip list` shows all required packages
-
----
-
-## ✅ Task 4: Create .gitignore File
-
-**Location:** `~/ngfw-prototype/web/.gitignore`  
-**Priority:** High  
-**Estimated Time:** 2 minutes
-
-### Create the file:
-
-```bash
-cat > .gitignore << 'EOF'
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg
-*.egg-info/
-dist/
-build/
-
-# Virtual Environment
-venv/
-env/
-ENV/
-
-# Flask
-instance/
-.env
-*.db
-
-# Logs
-logs/
-*.log
-
-# Uploads
-uploads/
-/tmp/uploads/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-EOF
-```
-
----
-
-## ✅ Task 5: Create .env File
-
-**Location:** `~/ngfw-prototype/web/.env`  
-**Priority:** High  
-**Estimated Time:** 3 minutes
-
-### Create the file:
-
-```bash
-cat > .env << 'EOF'
-# Flask Configuration
-FLASK_APP=app.py
-FLASK_ENV=development
-SECRET_KEY=adaptive_ngfw_secret_key_change_in_production
-
-# Database
-SQLALCHEMY_DATABASE_URI=sqlite:///instance/database.db
-SQLALCHEMY_TRACK_MODIFICATIONS=False
-
-# Upload Configuration
-UPLOAD_FOLDER=uploads/safe
-QUARANTINE_FOLDER=uploads/quarantine
-TEMP_UPLOAD_FOLDER=/tmp/uploads
-MAX_CONTENT_LENGTH=16777216
-
-# ClamAV Configuration
-CLAMAV_HOST=localhost
-CLAMAV_PORT=3310
-
-# VM1 API Configuration (for adaptive blocking)
-VM1_API_URL=http://10.0.0.1:5000/api/block_ip
-VM1_API_KEY=your_api_key_here
-
-# Logging
-LOG_LEVEL=INFO
-LOG_FILE=logs/app.log
-ERROR_LOG_FILE=logs/error.log
-EOF
-```
-
-**Important:** This file contains sensitive configuration. Never commit to Git.
+- All files exist
+- No import errors
+- Flask app initializes without errors
+- Models can be imported successfully
 
 ---
 
 ## 📋 Verification Checklist
 
-After completing the above tasks, verify:
+After completing Step 1.2 tasks, verify:
 
-- [ ] Virtual environment created and activated
-- [ ] `requirements.txt` file exists with all dependencies
-- [ ] All packages installed without errors
-- [ ] `.gitignore` file created
-- [ ] `.env` file created with all configuration variables
-- [ ] Current directory is `~/ngfw-prototype/web/`
-- [ ] Prompt shows `(venv)` prefix
+- [ ] `app.py` created with Flask initialization
+- [ ] `config.py` created with all configuration classes
+- [ ] `models.py` created with all 4 database models
+- [ ] `wsgi.py` created for production deployment
+- [ ] All files can be imported without errors
+- [ ] Flask app initializes successfully
+- [ ] No syntax errors in any file
+- [ ] Virtual environment still activated
 
 ---
 
 ## 🎯 Next Phase Preview
 
-Once Step 1.1 is complete, you will move to:
-
-### **Step 1.2: Create Base Project Structure**
-
-This involves creating these core files:
-1. `app.py` - Flask application entry point
-2. `config.py` - Configuration management
-3. `models.py` - Database models
-4. `wsgi.py` - Production WSGI entry point
+Once Step 1.2 is complete, you will move to:
 
 ### **Step 1.3: Create Directory Structure**
 
@@ -257,29 +228,32 @@ Creating all necessary folders:
 ## 🚨 Important Notes
 
 ### Prerequisites
-- VM2 (Ubuntu Server) must be accessible
-- Python 3.x must be installed
-- Internet connection required for package installation
+- Step 1.1 completed (virtual environment and dependencies installed)
+- Virtual environment activated
+- Text editor or IDE ready for coding
 
 ### Common Issues & Solutions
 
-**Issue 1:** `python3: command not found`
+**Issue 1:** Import errors when testing app.py
 ```bash
-sudo apt update
-sudo apt install python3 python3-venv python3-pip
+# Ensure virtual environment is activated
+source venv/bin/activate
+# Verify all dependencies are installed
+pip list
 ```
 
-**Issue 2:** Permission denied when creating venv
+**Issue 2:** SQLAlchemy import errors
 ```bash
-# Ensure you're in your home directory or have write permissions
-cd ~/ngfw-prototype/web
+# Reinstall Flask-SQLAlchemy
+pip install --upgrade Flask-SQLAlchemy
 ```
 
-**Issue 3:** pip install fails
+**Issue 3:** Configuration not loading from .env
 ```bash
-# Update pip first
-python -m pip install --upgrade pip
-# Then retry installation
+# Ensure python-dotenv is installed
+pip install python-dotenv
+# Verify .env file exists
+ls -la .env
 ```
 
 ---
@@ -288,9 +262,9 @@ python -m pip install --upgrade pip
 
 ### Current Status
 - **Phase:** 1 of 14
-- **Step:** 1.1 of 1.3
-- **Overall Progress:** ~1%
-- **Estimated Time Remaining:** 21-32 hours
+- **Step:** 1.2 of 1.3 (Step 1.1 Complete ✅)
+- **Overall Progress:** ~3%
+- **Estimated Time Remaining:** 20-30 hours
 
 ### Update Instructions
 Once you complete these tasks:
@@ -307,17 +281,19 @@ Once you complete these tasks:
 cd ~/ngfw-prototype/web
 source venv/bin/activate
 
-# Deactivate virtual environment
-deactivate
+# Test Flask app initialization
+python -c "from app import app; print('App initialized')"
 
-# Check installed packages
-pip list
+# Test database models
+python -c "from models import User, Feedback, UploadedFile, LogEvent; print('Models OK')"
 
-# Verify Flask installation
-python -c "import flask; print(flask.__version__)"
+# Test configuration loading
+python -c "from config import Config; print('Config loaded')"
 
-# Verify PyClamd installation
-python -c "import pyclamd; print('PyClamd installed')"
+# Run Flask development server (after app.py is complete)
+python app.py
+# OR
+flask run
 ```
 
 ---
@@ -333,13 +309,15 @@ python -c "import pyclamd; print('PyClamd installed')"
 
 ## ✅ Ready to Begin?
 
-**Start with Task 1** and work through each task sequentially. Once all tasks in Step 1.1 are complete, this file will be updated with Step 1.2 details.
+**Start with Task 1** and work through each task sequentially. Once all tasks in Step 1.2 are complete, this file will be updated with Step 1.3 details.
 
-**Command to start:**
+**Commands to start:**
 ```bash
 cd ~/ngfw-prototype/web
-python3 -m venv venv
 source venv/bin/activate
+# Create app.py first, then config.py, models.py, and wsgi.py
 ```
+
+**Note:** Refer to `Project-structure.md` for detailed file structure and `IMPLEMENTATION_PLAN.md` for complete specifications.
 
 Good luck! 🚀
