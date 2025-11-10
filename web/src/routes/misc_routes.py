@@ -15,7 +15,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from src.services.database_service import get_recent_log_events
+from src.services.database_service import get_recent_attacks
 from models import LogEvent, UploadedFile, Feedback, User
 
 logger = logging.getLogger('app')
@@ -102,7 +102,7 @@ def statistics():
         }
         
         # Get recent activity
-        recent_logs = get_recent_log_events(limit=10)
+        recent_logs = LogEvent.query.order_by(LogEvent.timestamp.desc()).limit(10).all()
         
         if request.is_json or request.args.get('format') == 'json':
             return jsonify({

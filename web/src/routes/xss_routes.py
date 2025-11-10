@@ -11,7 +11,8 @@ Author: NGFW Test Website
 Date: November 10, 2025
 """
 
-from flask import Blueprint, request, jsonify, render_template, Markup
+from flask import Blueprint, request, jsonify, render_template
+from markupsafe import Markup
 import logging
 
 # Import services
