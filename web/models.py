@@ -54,17 +54,19 @@ class Feedback(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    name = db.Column(db.String(100), nullable=True, default='Anonymous')
     message = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     def __repr__(self):
-        return f'<Feedback {self.id} by User {self.user_id}>'
+        return f'<Feedback {self.id} by {self.name}>'
     
     def to_dict(self):
         """Convert feedback object to dictionary"""
         return {
             'id': self.id,
             'user_id': self.user_id,
+            'name': self.name,
             'message': self.message,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
