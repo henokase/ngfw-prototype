@@ -96,18 +96,25 @@ def read_file():
         }), 200
     
     except FileNotFoundError:
-        logger.warning(f"File not found: {filename}")
+        logger.warning(f"File not found: {filename if 'filename' in locals() else 'unknown'}")
         return jsonify({
             'status': 'error',
-            'message': f'File not found: {filename}'
-        }), 404
+            'message': f'File not found: {filename if "filename" in locals() else "unknown"}'
+        }), 200  # Return 200 so AJAX can parse JSON
     
     except PermissionError:
-        logger.error(f"Permission denied: {filename}")
+        logger.error(f"Permission denied: {filename if 'filename' in locals() else 'unknown'}")
         return jsonify({
             'status': 'error',
-            'message': f'Permission denied: {filename}'
-        }), 403
+            'message': f'Permission denied: {filename if "filename" in locals() else "unknown"}'
+        }), 200  # Return 200 so AJAX can parse JSON
+    
+    except UnicodeDecodeError:
+        logger.error(f"Cannot read file (binary or encoding issue): {filename if 'filename' in locals() else 'unknown'}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Cannot read file: File is binary or has encoding issues'
+        }), 200  # Return 200 so AJAX can parse JSON
     
     except Exception as e:
         logger.error(f"File read error: {str(e)}")
@@ -122,4 +129,4 @@ def read_file():
         return jsonify({
             'status': 'error',
             'message': f'File read error: {str(e)}'
-        }), 500
+        }), 200  # Return 200 so AJAX can parse JSON

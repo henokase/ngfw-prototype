@@ -12,10 +12,12 @@
             <div class="card-body">
                 <div class="alert alert-warning">
                     <h5><i class="bi bi-bug-fill"></i> Vulnerability: XML External Entity (XXE)</h5>
-                    <p>External entity processing is enabled. Try the payload below:</p>
+                    <p><strong>Try reading files:</strong></p>
+                    <p><strong>Linux:</strong> <code>file:///etc/passwd</code></p>
+                    <p><strong>Windows:</strong> <code>file:///C:/Windows/System32/drivers/etc/hosts</code></p>
                 </div>
 
-                <form method="POST" action="{{ url_for('xml.parse_xml') }}">
+                <form id="xmlForm">
                     <div class="mb-3">
                         <label for="xml" class="form-label"><i class="bi bi-code"></i> XML Data</label>
                         <textarea class="form-control font-monospace" id="xml" name="xml" rows="10" required
@@ -29,16 +31,116 @@
             </div>
         </div>
 
-        {% if data %}
-        <div class="card mt-4">
-            <div class="card-header bg-dark text-white">
+        <!-- Output Section -->
+        <div id="outputSection" class="card mt-4" style="display: none;">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-file-text"></i> Parsed XML Data</h5>
+                <div>
+                    <button id="fullscreenBtn" class="btn btn-sm btn-outline-light me-2">
+                        <i class="bi bi-arrows-fullscreen"></i> Fullscreen
+                    </button>
+                    <button id="clearBtn" class="btn btn-sm btn-outline-light">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </button>
+                </div>
             </div>
             <div class="card-body">
-                <pre class="bg-dark text-light p-3 rounded">{{ data | tojson(indent=2) }}</pre>
+                <p><strong>Status:</strong> <span id="parseStatus" class="badge"></span></p>
+                <p><strong>Root Tag:</strong> <code id="rootTag"></code></p>
+                <pre id="xmlOutput" class="bg-dark text-light p-3 rounded" style="max-height: 400px; overflow: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
             </div>
         </div>
-        {% endif %}
     </div>
 </div>
+
+<!-- Fullscreen Modal -->
+<div class="modal fade" id="fullscreenModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-file-text"></i> Parsed XML Data - Fullscreen</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Status:</strong> <span id="fullscreenStatus" class="badge"></span></p>
+                <p><strong>Root Tag:</strong> <code id="fullscreenRootTag"></code></p>
+                <pre id="fullscreenOutput" class="bg-black text-light p-3 rounded" style="height: calc(100vh - 200px); overflow: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('xmlForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const xml = document.getElementById('xml').value;
+    const outputSection = document.getElementById('outputSection');
+    const parseStatus = document.getElementById('parseStatus');
+    const rootTag = document.getElementById('rootTag');
+    const xmlOutput = document.getElementById('xmlOutput');
+    
+    // Show loading
+    outputSection.style.display = 'block';
+    parseStatus.textContent = 'Parsing...';
+    parseStatus.className = 'badge bg-info';
+    rootTag.textContent = '...';
+    xmlOutput.textContent = 'Please wait...';
+    
+    try {
+        const response = await fetch('{{ url_for("xml.parse_xml") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ xml: xml })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            parseStatus.textContent = 'Success';
+            parseStatus.className = 'badge bg-success';
+            rootTag.textContent = data.root_tag || 'N/A';
+            xmlOutput.textContent = JSON.stringify(data.data, null, 2);
+            xmlOutput.classList.remove('text-danger');
+            xmlOutput.classList.add('text-light');
+        } else {
+            parseStatus.textContent = 'Error';
+            parseStatus.className = 'badge bg-danger';
+            rootTag.textContent = 'N/A';
+            xmlOutput.textContent = 'Error: ' + data.message;
+            xmlOutput.classList.add('text-danger');
+        }
+    } catch (error) {
+        parseStatus.textContent = 'Error';
+        parseStatus.className = 'badge bg-danger';
+        rootTag.textContent = 'N/A';
+        xmlOutput.textContent = 'Request failed: ' + error.message;
+        xmlOutput.classList.add('text-danger');
+    }
+});
+
+// Fullscreen functionality
+document.getElementById('fullscreenBtn').addEventListener('click', function() {
+    const status = document.getElementById('parseStatus').textContent;
+    const statusClass = document.getElementById('parseStatus').className;
+    const root = document.getElementById('rootTag').textContent;
+    const output = document.getElementById('xmlOutput').textContent;
+    
+    document.getElementById('fullscreenStatus').textContent = status;
+    document.getElementById('fullscreenStatus').className = statusClass;
+    document.getElementById('fullscreenRootTag').textContent = root;
+    document.getElementById('fullscreenOutput').textContent = output;
+    
+    const modal = new bootstrap.Modal(document.getElementById('fullscreenModal'));
+    modal.show();
+});
+
+// Clear functionality
+document.getElementById('clearBtn').addEventListener('click', function() {
+    document.getElementById('outputSection').style.display = 'none';
+    document.getElementById('xml').value = '<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>\n<data>&xxe;</data>';
+});
+</script>
 {% endblock %}
