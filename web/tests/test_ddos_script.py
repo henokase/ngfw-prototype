@@ -13,7 +13,7 @@ def test_server_connectivity():
     """Test if the Flask server is running"""
     print("🔍 Testing server connectivity...")
     try:
-        response = requests.get("http://127.0.0.1:8081/", timeout=5)
+        response = requests.get("https://ae13353d5d1a.ngrok-free.app/", timeout=5)
         if response.status_code == 200:
             print("✅ Server is running and responsive")
             return True

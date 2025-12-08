@@ -33,7 +33,7 @@ from datetime import datetime
 from collections import defaultdict
 
 # Default configuration
-DEFAULT_TARGET = "http://127.0.0.1:8081"
+DEFAULT_TARGET = "http://127.0.0.1:5000"
 DEFAULT_RATE = 100  # requests per second
 DEFAULT_DURATION = 60  # seconds
 DEFAULT_THREADS = 10
