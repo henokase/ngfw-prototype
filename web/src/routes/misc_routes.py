@@ -24,6 +24,36 @@ logger = logging.getLogger('app')
 misc_bp = Blueprint('misc', __name__)
 
 
+@misc_bp.route('/api/clamav_health', methods=['GET'])
+def clamav_health():
+    """Simple health probe for ClamAV integration.
+
+    Uses the same get_antivirus_service() helper as the upload routes
+    to check whether a ClamAV daemon is reachable. If ClamAV is not
+    available, the AntivirusService falls back to simulation mode.
+    """
+
+    from src.services.antivirus_service import get_antivirus_service
+
+    service = get_antivirus_service()
+
+    version = service.get_version()
+    in_simulation = False
+    status = 'ok'
+
+    if version is None:
+        # Error or unavailable
+        status = 'error'
+    elif isinstance(version, str) and 'Simulation mode' in version:
+        in_simulation = True
+
+    return jsonify({
+        'status': status,
+        'simulation_mode': in_simulation,
+        'version': version,
+    })
+
+
 @misc_bp.route('/', methods=['GET'])
 def index():
     """
