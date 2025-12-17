@@ -359,15 +359,26 @@ def get_antivirus_service(
     safe_folder: str = 'uploads/safe',
     vm1_api_url: Optional[str] = None
 ) -> AntivirusService:
+    """Get or create the global antivirus service instance.
+
+    On Linux/VM2, ClamAV is typically exposed via a Unix socket managed by
+    systemd (e.g. /var/run/clamav/clamd.ctl). To make the integration
+    smoother, we default to using a socket if one is not explicitly
+    provided, with an optional CLAMAV_SOCKET environment override.
+
+    If the socket is not available, the service will fall back to the
+    configured TCP host/port and finally to simulation mode, as
+    implemented in AntivirusService._init_clamd().
     """
-    Get or create the global antivirus service instance
-    
-    Returns:
-        AntivirusService instance
-    """
+
     global _antivirus_service
-    
+
     if _antivirus_service is None:
+        # If no socket path was provided, try environment override first,
+        # then fall back to the common Debian/Ubuntu default.
+        if clamd_socket is None:
+            clamd_socket = os.environ.get('CLAMAV_SOCKET') or '/var/run/clamav/clamd.ctl'
+
         _antivirus_service = AntivirusService(
             clamd_socket=clamd_socket,
             clamd_host=clamd_host,
@@ -377,7 +388,7 @@ def get_antivirus_service(
             safe_folder=safe_folder,
             vm1_api_url=vm1_api_url
         )
-    
+
     return _antivirus_service
 
 
