@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from sqlalchemy import Column, Integer, String, Text, create_engine
+from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 from config import config
@@ -27,6 +27,43 @@ class LogEvent(Base):
     event = Column(String(128), nullable=False)
     data = Column(Text, nullable=True)
     timestamp = Column(String(64), nullable=False)  # ISO-8601
+
+
+class MalwareAlert(Base):
+    """Basic malware alert record from VM2.
+
+    This implements the foundation of the malware_alerts table from the
+    integration plan, focusing on core fields needed for Phase 1:
+    - filename / file_hash / signature
+    - vm2 and vm1 timestamps
+    - vm2_source identifier
+
+    Correlation and decision fields can be added later as the
+    conntrack/decision engine evolves.
+    """
+
+    __tablename__ = "malware_alerts"
+
+    id = Column(Integer, primary_key=True)
+    filename = Column(String(255), nullable=False)
+    file_hash = Column(String(128), nullable=False, index=True)
+    signature = Column(String(255), nullable=False)
+    vm2_timestamp = Column(String(64), nullable=False)
+    vm1_timestamp = Column(String(64), nullable=False)
+    vm2_source = Column(String(64), nullable=False)
+
+    # Correlation / decision placeholders (kept simple for now)
+    correlated_ips = Column(Text, nullable=True)
+    selected_ip = Column(String(64), nullable=True)
+    confidence_score = Column(Float, nullable=True)
+    correlation_method = Column(String(64), nullable=True)
+    action_taken = Column(String(64), nullable=True)
+    block_duration = Column(String(64), nullable=True)
+    block_reason = Column(Text, nullable=True)
+    blocked_at = Column(String(64), nullable=True)
+
+    block_id = Column(Integer, ForeignKey("blocks.id"), nullable=True)
+    log_event_id = Column(Integer, ForeignKey("logs.id"), nullable=True)
 
 
 _engine = create_engine(f"sqlite:///{config.DB_PATH}", connect_args={"check_same_thread": False})
@@ -71,6 +108,41 @@ def log_event(source: str, event: str, data: Optional[str]) -> LogEvent:
         session.commit()
         session.refresh(entry)
         return entry
+    finally:
+        session.close()
+
+
+def create_malware_alert(
+    *,
+    filename: str,
+    file_hash: str,
+    signature: str,
+    vm2_timestamp: str,
+    vm2_source: str,
+    action_taken: Optional[str] = None,
+) -> MalwareAlert:
+    """Create a MalwareAlert record from a VM2 notification.
+
+    For now this stores core alert data and marks the action as
+    "pending_correlation" or similar; correlation and blocking decisions
+    can be filled in later.
+    """
+
+    session = get_session()
+    try:
+        alert = MalwareAlert(
+            filename=filename,
+            file_hash=file_hash,
+            signature=signature,
+            vm2_timestamp=vm2_timestamp,
+            vm1_timestamp=datetime.utcnow().isoformat(),
+            vm2_source=vm2_source,
+            action_taken=action_taken,
+        )
+        session.add(alert)
+        session.commit()
+        session.refresh(alert)
+        return alert
     finally:
         session.close()
 
