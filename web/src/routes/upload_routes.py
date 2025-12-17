@@ -42,10 +42,13 @@ security_logger = get_security_logger()
 upload_bp = Blueprint('upload', __name__)
 
 # Configuration
-UPLOAD_FOLDER = Config.UPLOAD_FOLDER
+# Use a common uploads root so that files are stored under:
+#   uploads/safe/        for clean files
+#   uploads/quarantine/  for infected files
+UPLOAD_ROOT = 'uploads'
 TEMP_UPLOAD_FOLDER = '/tmp/uploads'
-QUARANTINE_FOLDER = os.path.join(UPLOAD_FOLDER, 'quarantine')
-SAFE_FOLDER = os.path.join(UPLOAD_FOLDER, 'safe')
+QUARANTINE_FOLDER = os.path.join(UPLOAD_ROOT, 'quarantine')
+SAFE_FOLDER = os.path.join(UPLOAD_ROOT, 'safe')
 VM1_API_URL = 'http://10.0.0.1:5001/api/malware_alert'
 VM1_API_TIMEOUT = 5
 
@@ -220,9 +223,10 @@ def upload_file():
             uploaded_file = UploadedFile(
                 filename=filename,
                 filepath=safe_filepath,
-                file_hash=file_hash,
-                scan_result='clean',
-                scan_signature=None
+                scan_status='clean',
+                scan_result=scan_result.get('details', 'No threats detected'),
+                signature_name=None,
+                uploader_ip=request.remote_addr,
             )
             
             if safe_add(uploaded_file):
@@ -261,9 +265,10 @@ def upload_file():
             uploaded_file = UploadedFile(
                 filename=filename,
                 filepath=quarantine_filepath,
-                file_hash=file_hash,
-                scan_result='infected',
-                scan_signature=signature
+                scan_status='infected',
+                scan_result=scan_result.get('details', f'Malware detected: {signature}'),
+                signature_name=signature,
+                uploader_ip=request.remote_addr,
             )
             
             if safe_add(uploaded_file):
