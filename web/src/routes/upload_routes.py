@@ -283,13 +283,13 @@ def upload_file():
             g.upload_filename = filename
             g.upload_file_hash = file_hash
             
-            # Log security event
+            # Log security event (use non-reserved extra keys to avoid LogRecord conflicts)
             security_logger.critical(
                 f"Malware upload detected",
                 extra={
-                    'filename': filename,
-                    'file_hash': file_hash,
-                    'signature': signature,
+                    'malware_filename': filename,
+                    'malware_file_hash': file_hash,
+                    'malware_signature': signature,
                     'vm1_notified': vm1_response is not None,
                     'vm1_blocked_ip': vm1_response.get('blocked_ip') if vm1_response else None
                 }
