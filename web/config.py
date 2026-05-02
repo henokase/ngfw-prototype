@@ -53,11 +53,6 @@ class Config:
     CLAMAV_PORT = int(os.environ.get('CLAMAV_PORT') or 3310)
     CLAMAV_TIMEOUT = 30  # seconds
     
-    # VM1 API Configuration (for adaptive blocking)
-    VM1_API_URL = os.environ.get('VM1_API_URL') or 'http://10.0.0.1:5000/api/block_ip'
-    VM1_API_KEY = os.environ.get('VM1_API_KEY') or 'your_api_key_here'
-    VM1_API_TIMEOUT = 5  # seconds
-    
     # Logging Configuration
     LOG_LEVEL = os.environ.get('LOG_LEVEL') or 'INFO'
     LOG_FILE = os.environ.get('LOG_FILE') or 'logs/app.log'

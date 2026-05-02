@@ -2,13 +2,7 @@
 File Upload Routes
 
 Implements file upload functionality with ClamAV malware scanning.
-Demonstrates the VM2 → VM1 communication workflow for infected files.
-
-CRITICAL ARCHITECTURE:
-- VM2 does NOT extract real client IPs
-- VM2 only sees VM1's IP (10.0.0.1)
-- For infected files: VM2 sends alert to VM1 (filename, hash, signature - NO IP)
-- VM1 correlates with conntrack and blocks real client IP
+Infected files are quarantined locally and logged for the website's own awareness.
 
 SECURITY WARNING: This code contains INTENTIONAL vulnerabilities (no file type validation).
 For testing purposes only.
@@ -23,7 +17,6 @@ from datetime import datetime
 import logging
 import os
 import hashlib
-import requests
 
 # Import services
 import sys
@@ -33,7 +26,6 @@ from src.services.antivirus_service import scan_file, get_antivirus_service
 from src.services.database_service import safe_add
 from src.services.logging_service import get_security_logger
 from models import db, UploadedFile
-from config import Config
 
 logger = logging.getLogger('app')
 security_logger = get_security_logger()
@@ -42,15 +34,10 @@ security_logger = get_security_logger()
 upload_bp = Blueprint('upload', __name__)
 
 # Configuration
-# Use a common uploads root so that files are stored under:
-#   uploads/safe/        for clean files
-#   uploads/quarantine/  for infected files
 UPLOAD_ROOT = 'uploads'
 TEMP_UPLOAD_FOLDER = '/tmp/uploads'
 QUARANTINE_FOLDER = os.path.join(UPLOAD_ROOT, 'quarantine')
 SAFE_FOLDER = os.path.join(UPLOAD_ROOT, 'safe')
-VM1_API_URL = 'http://10.0.0.1:5001/api/malware_alert'
-VM1_API_TIMEOUT = 5
 
 # Ensure directories exist
 os.makedirs(TEMP_UPLOAD_FOLDER, exist_ok=True)
@@ -75,68 +62,6 @@ def calculate_file_hash(filepath):
     return sha256_hash.hexdigest()
 
 
-def notify_vm1_malware(filename, file_hash, signature):
-    """
-    Send malware alert to VM1 Firewall Control API
-    
-    CRITICAL: Does NOT send client IP - VM1 will correlate with conntrack
-    
-    Args:
-        filename: Name of infected file
-        file_hash: SHA256 hash of file
-        signature: ClamAV signature name
-        
-    Returns:
-        VM1 response dict or None
-    """
-    try:
-        alert_payload = {
-            'event_type': 'malware_detected',
-            'filename': filename,
-            'timestamp': datetime.utcnow().isoformat(),
-            'result': 'infected',
-            'file_hash': file_hash,
-            'signature': signature,
-            'vm2_source': 'web_upload_scanner'
-        }
-        
-        logger.info(f"Sending malware alert to VM1: {filename} ({signature})")
-        
-        response = requests.post(
-            VM1_API_URL,
-            json=alert_payload,
-            timeout=VM1_API_TIMEOUT
-        )
-        
-        if response.status_code == 200:
-            vm1_response = response.json()
-            logger.info(f"VM1 response: {vm1_response}")
-            
-            # Log VM1's blocking action (for audit only)
-            if 'blocked_ip' in vm1_response:
-                security_logger.warning(
-                    f"VM1 blocked IP for malware upload",
-                    extra={
-                        'blocked_ip': vm1_response['blocked_ip'],
-                        'filename': filename,
-                        'signature': signature,
-                        'file_hash': file_hash
-                    }
-                )
-            
-            return vm1_response
-        else:
-            logger.error(f"VM1 API returned status {response.status_code}")
-            return None
-    
-    except requests.exceptions.Timeout:
-        logger.error(f"VM1 API timeout after {VM1_API_TIMEOUT} seconds")
-        return None
-    except Exception as e:
-        logger.error(f"Failed to notify VM1: {str(e)}")
-        return None
-
-
 @upload_bp.route('/upload', methods=['GET'])
 def upload_form():
     """
@@ -159,7 +84,7 @@ def upload_file():
     1. Save file to /tmp/uploads
     2. Scan with ClamAV
     3. If CLEAN: Move to /uploads/safe/, create DB record
-    4. If INFECTED: Move to /uploads/quarantine/, notify VM1 API
+    4. If INFECTED: Move to /uploads/quarantine/, log security event
     5. Set g.upload_result, g.upload_filename, g.upload_file_hash for logging
     
     Returns:
@@ -274,24 +199,19 @@ def upload_file():
             if safe_add(uploaded_file):
                 logger.info(f"Infected file record created in database: {filename}")
             
-            # CRITICAL: Notify VM1 (NO IP ADDRESS SENT)
-            # VM1 will correlate with conntrack to find real client IP
-            vm1_response = notify_vm1_malware(filename, file_hash, signature)
-            
             # Set flask.g for request logger middleware
             g.upload_result = 'infected'
             g.upload_filename = filename
             g.upload_file_hash = file_hash
             
-            # Log security event (use non-reserved extra keys to avoid LogRecord conflicts)
+            # Log security event
             security_logger.critical(
                 f"Malware upload detected",
                 extra={
                     'malware_filename': filename,
                     'malware_file_hash': file_hash,
                     'malware_signature': signature,
-                    'vm1_notified': vm1_response is not None,
-                    'vm1_blocked_ip': vm1_response.get('blocked_ip') if vm1_response else None
+                    'quarantined': True,
                 }
             )
             
@@ -302,7 +222,6 @@ def upload_file():
                 'file_hash': file_hash,
                 'scan_result': 'infected',
                 'signature': signature,
-                'vm1_response': vm1_response
             }), 400
         
         else:
@@ -383,8 +302,8 @@ def upload_stats():
     """
     try:
         total_uploads = UploadedFile.query.count()
-        clean_uploads = UploadedFile.query.filter_by(scan_result='clean').count()
-        infected_uploads = UploadedFile.query.filter_by(scan_result='infected').count()
+        clean_uploads = UploadedFile.query.filter_by(scan_status='clean').count()
+        infected_uploads = UploadedFile.query.filter_by(scan_status='infected').count()
         
         return jsonify({
             'status': 'success',

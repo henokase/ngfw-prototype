@@ -13,7 +13,6 @@ import shutil
 import logging
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
-import requests
 
 try:
     import pyclamd
@@ -37,8 +36,7 @@ class AntivirusService:
         clamd_port: int = 3310,
         temp_folder: str = '/tmp/uploads',
         quarantine_folder: str = 'uploads/quarantine',
-        safe_folder: str = 'uploads/safe',
-        vm1_api_url: Optional[str] = None
+        safe_folder: str = 'uploads/safe'
     ):
         """
         Initialize antivirus service
@@ -50,7 +48,6 @@ class AntivirusService:
             temp_folder: Temporary upload folder
             quarantine_folder: Folder for infected files
             safe_folder: Folder for clean files
-            vm1_api_url: URL for VM1 API notifications
         """
         self.clamd_socket = clamd_socket
         self.clamd_host = clamd_host
@@ -58,7 +55,6 @@ class AntivirusService:
         self.temp_folder = temp_folder
         self.quarantine_folder = quarantine_folder
         self.safe_folder = safe_folder
-        self.vm1_api_url = vm1_api_url
         
         # Ensure folders exist
         for folder in [temp_folder, quarantine_folder, safe_folder]:
@@ -235,10 +231,6 @@ class AntivirusService:
             # Move to quarantine
             dest_folder = self.quarantine_folder
             dest_path = os.path.join(dest_folder, filename)
-            
-            # Notify VM1 API if configured
-            if self.vm1_api_url:
-                self._notify_vm1(filename, scan_result, uploader_ip)
         else:
             # Move to safe folder
             dest_folder = self.safe_folder
@@ -262,53 +254,6 @@ class AntivirusService:
             dest_path = source_path
         
         return scan_result, dest_path
-    
-    def _notify_vm1(
-        self,
-        filename: str,
-        scan_result: Dict[str, Any],
-        uploader_ip: Optional[str]
-    ) -> bool:
-        """
-        Notify VM1 API about malware detection
-        
-        Args:
-            filename: Name of infected file
-            scan_result: Scan result dictionary
-            uploader_ip: IP address of uploader
-            
-        Returns:
-            True if notification successful, False otherwise
-        """
-        if not self.vm1_api_url:
-            return False
-        
-        try:
-            payload = {
-                'event_type': 'malware_detected',
-                'filename': filename,
-                'signature': scan_result.get('signature'),
-                'uploader_ip': uploader_ip,
-                'timestamp': scan_result.get('timestamp'),
-                'details': scan_result.get('details')
-            }
-            
-            response = requests.post(
-                f"{self.vm1_api_url}/malware-alert",
-                json=payload,
-                timeout=5
-            )
-            
-            if response.status_code == 200:
-                logger.info(f"VM1 notified about malware: {filename}")
-                return True
-            else:
-                logger.warning(f"VM1 notification failed: {response.status_code}")
-                return False
-                
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error notifying VM1: {str(e)}")
-            return False
     
     def get_version(self) -> Optional[str]:
         """
@@ -356,8 +301,7 @@ def get_antivirus_service(
     clamd_port: int = 3310,
     temp_folder: str = '/tmp/uploads',
     quarantine_folder: str = 'uploads/quarantine',
-    safe_folder: str = 'uploads/safe',
-    vm1_api_url: Optional[str] = None
+    safe_folder: str = 'uploads/safe'
 ) -> AntivirusService:
     """Get or create the global antivirus service instance.
 
@@ -385,8 +329,7 @@ def get_antivirus_service(
             clamd_port=clamd_port,
             temp_folder=temp_folder,
             quarantine_folder=quarantine_folder,
-            safe_folder=safe_folder,
-            vm1_api_url=vm1_api_url
+            safe_folder=safe_folder
         )
 
     return _antivirus_service

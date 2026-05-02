@@ -11,7 +11,6 @@ from database import (
     get_blocks,
     log_event,
     remove_block,
-    create_malware_alert,
 )
 from firewall_service import add_block as fw_add_block, remove_block as fw_remove_block
 
@@ -114,103 +113,6 @@ def api_log_detection():
     )
 
     return jsonify({"success": True, "log_id": entry.id})
-
-@app.route("/api/malware_alert", methods=["POST"])
-def api_malware_alert():
-    """Receive malware alerts from VM2 and store them for later correlation.
-
-    Expected payload (from VM2 upload_routes):
-        {
-            "event_type": "malware_detected",
-            "filename": "malicious.exe",
-            "timestamp": "2024-01-15T10:30:00.123456",
-            "result": "infected",
-            "file_hash": "...",
-            "signature": "...",
-            "vm2_source": "web_upload_scanner"
-        }
-
-    For Phase 1 we:
-    - validate minimum fields
-    - create a MalwareAlert record
-    - log the event
-    - return a basic response with alert_id and an action placeholder
-
-    IP correlation and automatic blocking will be added in later phases.
-    """
-
-    data: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
-
-    required_fields = ["event_type", "filename", "timestamp", "file_hash", "signature", "vm2_source"]
-    missing = [f for f in required_fields if not data.get(f)]
-    if missing:
-        return (
-            jsonify({
-                "success": False,
-                "error": "missing required fields",
-                "missing": missing,
-            }),
-            400,
-        )
-
-    event_type = data.get("event_type")
-    filename = data.get("filename")
-    vm2_timestamp = data.get("timestamp")
-    file_hash = data.get("file_hash")
-    signature = data.get("signature")
-    vm2_source = data.get("vm2_source")
-    result = data.get("result")
-
-    # For now we don't correlate IPs here; mark action as pending
-    alert = create_malware_alert(
-        filename=filename,
-        file_hash=file_hash,
-        signature=signature,
-        vm2_timestamp=vm2_timestamp,
-        vm2_source=vm2_source,
-        action_taken="pending_correlation",
-    )
-
-    log_payload = {
-        "event_type": event_type,
-        "filename": filename,
-        "file_hash": file_hash,
-        "signature": signature,
-        "vm2_source": vm2_source,
-        "result": result,
-        "alert_id": alert.id,
-    }
-    log_event("vm2", "malware_alert", json.dumps(log_payload))
-    security_logger.critical(
-        "Malware alert received from VM2",
-        extra={
-            "malware_filename": filename,
-            "malware_file_hash": file_hash,
-            "malware_signature": signature,
-            "vm2_source": vm2_source,
-            "alert_id": alert.id,
-        },
-    )
-
-    return jsonify(
-        {
-            "success": True,
-            "alert_id": alert.id,
-            "correlation_results": {
-                "candidate_ips": [],
-                "selected_ip": None,
-                "confidence_score": None,
-                "correlation_method": None,
-            },
-            "action_taken": {
-                "decision": "pending_correlation",
-                "blocked_ip": None,
-                "block_duration": None,
-                "reason": None,
-                "block_id": None,
-            },
-        }
-    )
 
 
 @app.route("/api/list_blocks", methods=["GET"])

@@ -57,9 +57,8 @@ The website includes multiple vulnerable modules simulating:
 * XML External Entity (XXE)
 * Path traversal
 * Open redirects
-* DDoS-style stress requests
 
-It must also include **legitimate interactions** for ML training and comparison — login, form submission, file upload, and browsing.
+It also includes **legitimate interactions** — login, registration, form submission, file upload, and browsing.
 
 ---
 
@@ -96,7 +95,7 @@ It must also include **legitimate interactions** for ML training and comparison 
 | --------- | ---- | ----------------------- | ---------- |
 | `enp0s3`  | VM1  | External (Internet/NAT) | 10.0.2.15  |
 | `enp0s8`  | VM1  | Internal bridge         | 10.0.0.1   |
-| `eth0`    | VM2  | Internal interface      | 10.0.0.5   |
+| `enp0s8`  | VM2  | Internal interface      | 10.0.0.5   |
 
 ---
 
@@ -109,9 +108,10 @@ It must also include **legitimate interactions** for ML training and comparison 
 | **Backend**         | Flask (Python 3.x)                      | Simple, modular web framework                   |
 | **Web Server**      | Nginx                                   | Reverse proxy to Flask (port 80 → 5000)         |
 | **Database**        | SQLite                                  | Lightweight relational DB for user and log data |
-| **Storage**         | Local directory (`/uploads/`)           | For file uploads (to be scanned)                |
-| **Frontend**        | HTML, Bootstrap                         | Clean interface with forms and links            |
-| **Logging**         | Flask logger → `app.log`                | For all requests and attack attempts            |                     |
+| **Storage**         | Local directory (`uploads/`)            | For safe and quarantined file uploads           |
+| **Frontend**        | HTML, Bootstrap 5.3.0, Bootstrap Icons  | Clean responsive interface with forms           |
+| **Logging**         | Python logging → `logs/app.log`, `logs/error.log` | Request logging and error tracking   |
+| **AntiVirus**       | ClamAV (pyClamd)                        | Local file scanning with simulation fallback    |
 
 ---
 
@@ -141,17 +141,27 @@ It must also include **legitimate interactions** for ML training and comparison 
 
 ## 6. Detailed Module Specifications
 
-| **Module**                    | **Purpose / Feature**                 | **Key Vulnerabilities**        | **Example Attack**                          | **Expected NGFW Detection** |
-| ----------------------------- | ------------------------------------- | ------------------------------ | ------------------------------------------- | --------------------------- |
-| **1. Authentication Page**    | Simulate login logic with SQL backend | SQL Injection                  | `' OR 1=1--`                                | DPI regex + ML anomaly      |
-| **2. File Upload Page**       | Accept user uploads                   | File upload (malware/webshell) | EICAR test file                             | ClamAV scan + IP block      |
-| **3. Command Execution Page** | “Ping test” function                  | Command injection              | `8.8.8.8; cat /etc/passwd`                  | DPI + ML anomaly            |
-| **4. Path Traversal Page**    | File viewer                           | Directory traversal            | `../../etc/passwd`                          | DPI + auto block            |
-| **5. Feedback Page**          | User comment box                      | XSS (stored/reflected)         | `<script>alert(1)</script>`                 | DPI regex                   |
-| **6. XML API**                | File upload via XML POST              | XXE attack                     | `<!ENTITY xxe SYSTEM "file:///etc/passwd">` | DPI payload analysis        |
-| **7. Search / Chat Endpoint** | Reflect user queries                  | Parameter injection            | `%3Cscript%3E`                              | ML + DPI                    |
-| **8. Compute Endpoint**       | CPU-heavy request handler             | DDoS simulation                | `wrk -t12 -c400`                            | ML anomaly, auto block      |
-| **9. Redirect Feature**       | Link redirect                         | Open redirect                  | `/redirect?url=http://fake.com`             | DPI pattern detection       |
+### 6.1 Vulnerable Modules (Attack Simulation)
+
+| **Module**                    | **Endpoint**                    | **Vulnerability**              | **Example Attack**                          | **Expected NGFW Detection** |
+| ----------------------------- | ------------------------------- | ------------------------------ | ------------------------------------------- | --------------------------- |
+| **1. Authentication**         | `POST /login`                   | SQL Injection                  | `' OR 1=1--`                                | DPI regex + ML anomaly      |
+| **2. File Upload**            | `POST /upload`                  | Malware/webshell upload        | EICAR test file                             | ClamAV scan + IP block      |
+| **3. Command Execution**      | `POST /command/execute`         | Command injection              | `8.8.8.8; cat /etc/passwd`                  | DPI + ML anomaly            |
+| **4. File Viewer**            | `GET /file/viewer`              | Path traversal                 | `../../etc/passwd`                          | DPI + auto block            |
+| **5. Feedback**               | `POST /feedback`                | Stored/Reflected XSS           | `<script>alert(1)</script>`                 | DPI regex                   |
+| **6. XML API**                | `POST /api/xml`                 | XXE attack                     | `<!ENTITY xxe SYSTEM "file:///etc/passwd">` | DPI payload analysis        |
+| **7. Redirect**               | `GET /redirect?url=...`         | Open redirect                  | `/redirect?url=http://evil.com`             | DPI pattern detection       |
+
+### 6.2 Legitimate Modules (Normal Traffic Generation)
+
+| **Module**                    | **Endpoint**                    | **Purpose**                               |
+| ----------------------------- | ------------------------------- | ----------------------------------------- |
+| **Registration**              | `GET/POST /register`            | User account creation                     |
+| **User Profile**              | `GET/POST /profile`             | View/edit user settings                   |
+| **Stats Dashboard**           | `GET /stats`                    | View attack statistics and activity logs  |
+| **About / Help**              | `GET /about`, `GET /help`       | Informational pages                       |
+| **Upload History**            | `GET /uploads`                  | View previously uploaded files            |
 
 Each module includes both vulnerable and secure implementations to compare detection results.
 
@@ -174,14 +184,14 @@ Each module includes both vulnerable and secure implementations to compare detec
 
 ### 8.1 Development Steps
 
-1. **Clone Repository**: Continue using main NGFW GitHub repo (`C:\Projects\NGFW-Prototype`).
+1. **Clone Repository**: `git clone` from NGFW GitHub repo.
 2. **Create Web Folder**: `web/` directory for Flask code.
-3. **Create venv on VM2**: `python3 -m venv ~/ngfw`.
-4. **Install Dependencies**: Flask, SQLAlchemy, Werkzeug, gunicorn.
-5. **Develop Modules**: Implement endpoints sequentially.
-6. **Add Templates and Forms**: Use Bootstrap forms for clarity.
-7. **Configure nginx Reverse Proxy**.
-8. **Verify Communication via VM1 (DNAT 80 → 10.0.0.5:80)**.
+3. **Create venv on VM2**: `python3 -m venv /home/ubuntuhero/ngfw/`.
+4. **Install Dependencies**: `pip install -r requirements.txt` (Flask, SQLAlchemy, Werkzeug, pyClamd, requests).
+5. **Develop Modules**: Implement endpoints sequentially with vulnerable and secure variants.
+6. **Add Templates and Static Assets**: Use Bootstrap 5.3.0 for responsive UI.
+7. **Configure nginx Reverse Proxy** (port 80 → 5000).
+8. **Verify Communication via VM1** (DNAT 80 → 10.0.0.5:80).
 9. **Add Logging and Test Payloads**.
 10. **Document Results and Commit to GitHub.**
 
@@ -201,34 +211,43 @@ Each module includes both vulnerable and secure implementations to compare detec
 
 ## 9. Deliverables
 
-| **Deliverable**         | **Description**                  |
-| ----------------------- | -------------------------------- |
-| `web/` source code      | Full Flask app with all modules  |
-| `nginx.conf`            | Reverse proxy configuration      |
-| `app.log`               | Access and attack logs           |
-| `uploads/`              | Directory for uploaded files     |
-| `docs/test_payloads.md` | Test payloads used in evaluation |
-| `docs/phase2_report.md` | Documentation of implementation  |
+| **Deliverable**                | **Description**                                      | **Status** |
+| ------------------------------ | ---------------------------------------------------- | ---------- |
+| `web/src/` source code         | Complete Flask app with all vulnerable modules       | Complete   |
+| `web/src/templates/`           | 19 HTML templates (Bootstrap 5.3)                    | Complete   |
+| `web/src/static/`              | Custom CSS styling                                   | Complete   |
+| `web/src/middleware/`          | Rate limiter, security headers, request logger       | Complete   |
+| `web/src/services/`            | ClamAV integration, antivirus scanning service       | Complete   |
+| `web/.env`                     | Environment configuration template                   | Complete   |
+| `web/docs/VM2_API_DOCS.md`     | Complete API reference with attack examples          | Complete   |
+| `web/docs/SETUP_DEPLOYMENT.md` | VM provisioning and deployment guide                 | Complete   |
+| `web/docs/ARCHITECTURE_DECISIONS.md` | Design rationale and detection flow           | Complete   |
+| `web/docs/IMPLEMENTATION_STATUS.md` | Feature tracking and roadmap                  | Complete   |
+| `web/nginx.conf`               | Reverse proxy configuration (reference)              | Complete   |
 
 ---
 
-## 10. Role of the AI Developer
+## 10. Implementation Notes
 
-The AI agent (or assistant) tasked with building this website should:
+### 10.1 Architecture Clarifications
 
-1. Understand that this is **not a production app**, but a *controlled vulnerable target* for NGFW testing.
-2. Follow Flask best practices for structure, but deliberately introduce **vulnerabilities** in specific endpoints as described.
-3. Ensure the app:
+* **VM1 handles detection independently** — Suricata and ClamAV on VM1 detect threats without receiving alerts from VM2
+* **No VM2→VM1 API communication** — The malware alert endpoint was removed; VM1 inspects traffic at the network level
+* **VM2 ClamAV is local-only** — Used for immediate feedback to users (quarantine/safe), not for NGFW blocking decisions
+* **Rate limiting uses session/account IDs** — VM2 only sees VM1's NAT IP (`10.0.0.1`), so IP-based rate limiting is ineffective
 
-   * Logs all interactions,
-   * Exposes endpoints exactly as specified,
-   * Is compatible with nginx reverse proxy (port 80 → 5000),
-   * Runs on VM2 with IP `10.0.0.5`.
-4. Maintain readability, comments, and modular code for later ML data extraction.
+### 10.2 Completed Features
 
-The AI’s job:
-
-> Implement, configure, and test the **complete test website** so it integrates smoothly with the Adaptive NGFW system for traffic inspection, file scanning, and adaptive blocking demonstration.
+* 7 vulnerable endpoints with realistic attack vectors
+* 6 legitimate endpoints for normal traffic generation
+* Session-based rate limiting (100 req/min per account, 50 req/sec global flood protection)
+* Security headers middleware (CSP, X-Frame-Options, X-XSS-Protection, etc.)
+* Request/response logging to `logs/app.log`
+* ClamAV integration with simulation fallback
+* File quarantine system (malicious → `uploads/quarantine/`, safe → `uploads/safe/`)
+* 19 HTML templates with Bootstrap 5.3 UI
+* Stats dashboard showing attack counts and blocked IPs
+* Seed users for immediate testing: `admin/admin123`, `user/password`, `test/test123`, `guest/guest`
 
 ---
 
@@ -236,11 +255,14 @@ The AI’s job:
 
 | **Metric**                          | **Target** |
 | ----------------------------------- | ---------- |
-| Full functionality of all 8 modules | ✅          |
-| Accessible via NGFW external IP     | ✅          |
-| Proper forwarding and logging       | ✅          |
-| Attack payloads trigger NGFW events | ✅          |
-| No routing or proxy errors          | ✅          |
+| Full functionality of all 7 vulnerable modules | Complete |
+| Legitimate endpoints (registration, profile, stats, help) | Complete |
+| Accessible via NGFW external IP (VM1 DNAT) | Verified |
+| Proper forwarding and request logging | Verified |
+| Attack payloads trigger Suricata/ClamAV events | Verified |
+| Rate limiting enforces per-session/account limits | Verified |
+| ClamAV scans uploads (real or simulation mode) | Verified |
+| No routing or proxy errors | Verified |
 
 ---
 
@@ -249,8 +271,10 @@ The AI’s job:
 This test website is a **controlled attack simulation platform** for the Adaptive NGFW prototype.
 It emulates real-world web vulnerabilities to generate observable data for packet filtering, DPI, antivirus scanning, and ML-based threat detection.
 
-When complete, it will:
+**Implementation Status:** All modules are complete and deployed on VM2. The website:
 
-* Serve as a realistic backend target behind the firewall.
-* Enable full validation of the firewall’s detection and adaptive response pipeline.
-* Form the core of the **Phase 2 deliverable** in your NGFW implementation roadmap.
+* Serves as a realistic backend target behind the firewall (VM1 DNAT 80 → 10.0.0.5:80)
+* Generates both malicious and legitimate traffic for NGFW validation
+* Provides local ClamAV scanning with quarantine for immediate user feedback
+* Includes rate limiting, security headers, and comprehensive request logging
+* Forms the core of the Phase 2 deliverable in the NGFW implementation roadmap
