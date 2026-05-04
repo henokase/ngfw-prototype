@@ -20,7 +20,6 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from src.services.database_service import safe_add
 from src.services.logging_service import get_security_logger
 from models import db, Feedback
 
@@ -96,46 +95,25 @@ def submit_feedback():
                 'message': 'Feedback message is required'
             }), 400
         
-        # Log feedback submission
+        # Log feedback submission (no storage)
         logger.info(f"Feedback submitted by: {name}")
-        security_logger.info(
-            f"Feedback submission",
-            extra={
-                'name': name,
-                'message_length': len(message),
-                'ip_address': request.remote_addr or '10.0.0.1'
-            }
-        )
         
-        # VULNERABILITY: Stored XSS
-        # No sanitization of user input
-        # Malicious scripts will be stored and executed when displayed
-        feedback = Feedback(
-            name=name,
-            message=message  # VULNERABLE: No HTML escaping
-        )
-        
-        if safe_add(feedback):
-            logger.info(f"Feedback saved to database")
-            
-            if request.is_json:
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Feedback submitted successfully',
-                    'id': feedback.id
-                }), 201
-            else:
-                # Redirect back to feedback page
-                return render_template(
-                    'success.html',
-                    message='Feedback submitted successfully!',
-                    redirect_url='/feedback'
-                )
-        else:
+        # NO DATABASE STORAGE - Execute XSS immediately on page
+        # This is direct XSS execution without persistence
+        if request.is_json:
             return jsonify({
-                'status': 'error',
-                'message': 'Failed to save feedback'
-            }), 500
+                'status': 'success',
+                'message': 'Feedback submitted successfully'
+            }), 201
+        else:
+            # Render page with XSS payload - it will execute immediately
+            return render_template(
+                'feedback.html',
+                feedback_entries=[],
+                search_query='',
+                submitted_message=message,
+                submitted_name=name
+            )
     
     except Exception as e:
         logger.error(f"Feedback submission error: {str(e)}")
@@ -204,6 +182,35 @@ def delete_feedback(feedback_id):
     
     except Exception as e:
         logger.error(f"Error deleting feedback: {str(e)}")
+        db.session.rollback()
+        
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@xss_bp.route('/feedback/clear-all', methods=['POST'])
+def delete_all_feedback():
+    """
+    Delete all feedback entries
+    
+    Returns:
+        JSON response
+    """
+    try:
+        Feedback.query.delete()
+        db.session.commit()
+        
+        logger.info("All feedback entries deleted")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'All feedback deleted successfully'
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Error deleting all feedback: {str(e)}")
         db.session.rollback()
         
         return jsonify({

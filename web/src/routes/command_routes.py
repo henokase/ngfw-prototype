@@ -47,40 +47,40 @@ def execute_command():
     
     VULNERABILITY: Command Injection
     - Executes user input directly without sanitization
-    - Allows attackers to inject commands: 8.8.8.8; whoami
+    - Allows attackers to inject commands: whoami; ls -la
     
     Returns:
         JSON response with command output
     """
     try:
-        # Get command parameter
+        # Get command parameter (accept any command, not just host/IP)
         if request.is_json:
             data = request.get_json()
-            host = data.get('host', '')
+            command_input = data.get('command', data.get('host', ''))
         else:
-            host = request.form.get('host', '')
+            command_input = request.form.get('command', request.form.get('host', ''))
         
-        if not host:
+        if not command_input:
             return jsonify({
                 'status': 'error',
-                'message': 'Host parameter is required'
+                'message': 'Command parameter is required'
             }), 400
         
         # Log command attempt
-        logger.warning(f"Command execution attempt: ping {host}")
+        logger.warning(f"Command execution attempt: {command_input}")
         security_logger.warning(
             f"Command execution",
             extra={
-                'command': f"ping {host}",
+                'command': command_input,
                 'ip_address': request.remote_addr or '10.0.0.1',
                 'endpoint': '/cmd'
             }
         )
         
         # VULNERABILITY: Command Injection
-        # This allows attacks like: host = "8.8.8.8; cat /etc/passwd"
-        # Using shell=True makes it vulnerable
-        command = f"ping -c 4 {host}"
+        # Execute user input directly with shell=True
+        # Allows any shell command: whoami, ls, cat, etc.
+        command = command_input
         
         logger.debug(f"Executing command: {command}")
         
