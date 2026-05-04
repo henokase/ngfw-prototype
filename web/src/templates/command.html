@@ -14,10 +14,12 @@
                     <h5><i class="bi bi-bug-fill"></i> Vulnerability: Command Injection</h5>
                     <p class="mb-2"><strong>Try any command:</strong></p>
                     <p><code>whoami</code> - Display current user</p>
-                    <p><code>ls -la /</code> - List root directory</p>
-                    <p><code>cat /etc/passwd</code> - Read password file</p>
-                    <p><code>id</code> - Display user identity</p>
-                    <p><code>uname -a</code> - Display system info</p>
+                    <p><code>id</code> - Display user identity and groups</p>
+                    <p><code>cat /etc/hostname</code> - Read hostname file</p>
+                    <p><code>uname -a</code> - Display system/kernel info</p>
+                    <p><code>echo $(date)</code> - Command substitution</p>
+                    <p><code>ps aux | head -5</code> - Pipe chaining</p>
+                    <p><code>ls -la /etc/ | grep passwd</code> - Grep filter</p>
                     <hr>
                     <p class="mb-0"><small><strong>Chaining commands:</strong> <code>whoami; ls</code> or <code>whoami && ls</code></small></p>
                 </div>
