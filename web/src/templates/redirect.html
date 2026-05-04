@@ -12,7 +12,13 @@
             <div class="card-body">
                 <div class="alert alert-info">
                     <h5><i class="bi bi-bug-fill"></i> Vulnerability: Open Redirect</h5>
-                    <p><strong>Try:</strong> <code>http://malicious.com</code> or <code>http://evil.com/phishing</code></p>
+                    <p><strong>Try these payloads:</strong></p>
+                    <p><code>http://evil.com</code> - External domain</p>
+                    <p><code>http://malicious-site.com/phishing</code> - Phishing page</p>
+                    <p><code>https://google.com</code> - Legitimate site redirect</p>
+                    <p><code>//attacker.com</code> - Protocol-relative redirect</p>
+                    <p><code>///evil.com</code> - Triple slash bypass</p>
+                    <p><code>/%2f%2fevil.com</code> - Encoded bypass</p>
                 </div>
 
                 <form method="GET" action="{{ url_for('redirect.redirect_page') }}">

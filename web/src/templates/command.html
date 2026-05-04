@@ -12,17 +12,24 @@
             <div class="card-body">
                 <div class="alert alert-danger">
                     <h5><i class="bi bi-bug-fill"></i> Vulnerability: Command Injection</h5>
-                    <p><strong>Try:</strong> <code>8.8.8.8; whoami</code> or <code>8.8.8.8; ls -la</code></p>
+                    <p class="mb-2"><strong>Try any command:</strong></p>
+                    <p><code>whoami</code> - Display current user</p>
+                    <p><code>ls -la /</code> - List root directory</p>
+                    <p><code>cat /etc/passwd</code> - Read password file</p>
+                    <p><code>id</code> - Display user identity</p>
+                    <p><code>uname -a</code> - Display system info</p>
+                    <hr>
+                    <p class="mb-0"><small><strong>Chaining commands:</strong> <code>whoami; ls</code> or <code>whoami && ls</code></small></p>
                 </div>
 
                 <form id="commandForm">
                     <div class="mb-3">
-                        <label for="host" class="form-label"><i class="bi bi-hdd-network"></i> Host to Ping</label>
-                        <input type="text" class="form-control" id="host" name="host" required
-                               placeholder="Enter IP or hostname (e.g., 8.8.8.8)">
+                        <label for="command" class="form-label"><i class="bi bi-terminal"></i> Command to Execute</label>
+                        <input type="text" class="form-control" id="command" name="command" required
+                               placeholder="Enter command (e.g., whoami, ls -la, cat /etc/passwd)">
                     </div>
                     <button type="submit" class="btn btn-danger btn-lg w-100">
-                        <i class="bi bi-play-circle"></i> Execute Ping
+                        <i class="bi bi-play-circle"></i> Execute Command
                     </button>
                 </form>
             </div>
@@ -69,7 +76,7 @@
 document.getElementById('commandForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
-    const host = document.getElementById('host').value;
+    const command = document.getElementById('command').value;
     const outputSection = document.getElementById('outputSection');
     const executedCommand = document.getElementById('executedCommand');
     const commandOutput = document.getElementById('commandOutput');
@@ -85,7 +92,7 @@ document.getElementById('commandForm').addEventListener('submit', async function
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ host: host })
+            body: JSON.stringify({ command: command })
         });
         
         const data = await response.json();
@@ -118,7 +125,7 @@ document.getElementById('fullscreenBtn').addEventListener('click', function() {
 // Clear functionality
 document.getElementById('clearBtn').addEventListener('click', function() {
     document.getElementById('outputSection').style.display = 'none';
-    document.getElementById('host').value = '';
+    document.getElementById('command').value = '';
 });
 </script>
 {% endblock %}

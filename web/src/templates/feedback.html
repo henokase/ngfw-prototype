@@ -5,6 +5,26 @@
 {% block content %}
 <div class="row">
     <div class="col-md-8">
+        {% if submitted_message %}
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> <strong>XSS Payload Submitted!</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        
+        <!-- XSS Payload Display - VULNERABLE: Renders without escaping -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="bi bi-person-circle"></i> {{ submitted_name }}
+                    <small class="float-end">Just now</small>
+                </h6>
+                <div class="card-text">
+                    {{ submitted_message | safe }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <div class="card shadow">
             <div class="card-header bg-warning text-dark">
                 <h4 class="mb-0"><i class="bi bi-code-slash"></i> Feedback - XSS Test</h4>
@@ -12,8 +32,15 @@
             <div class="card-body">
                 <div class="alert alert-warning">
                     <h5><i class="bi bi-bug-fill"></i> Vulnerability: Stored & Reflected XSS</h5>
-                    <p><strong>Stored XSS Try:</strong> <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code></p>
-                    <p><strong>Reflected XSS Try:</strong> Search with <code>&lt;img src=x onerror=alert('XSS')&gt;</code></p>
+                    <p><strong>Stored XSS - Try these payloads:</strong></p>
+                    <p><code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code></p>
+                    <p><code>&lt;img src=x onerror=alert('XSS')&gt;</code></p>
+                    <p><code>&lt;svg onload=alert('XSS')&gt;</code></p>
+                    <p><code>&lt;body onload=alert('XSS')&gt;</code></p>
+                    <p><code>&lt;input onfocus=alert('XSS') autofocus&gt;</code></p>
+                    <p><code>&lt;iframe src=javascript:alert('XSS')&gt;</code></p>
+                    <hr>
+                    <p><strong>Reflected XSS:</strong> Use the search box above with any payload</p>
                 </div>
 
                 <form method="POST" action="{{ url_for('xss.submit_feedback') }}">
@@ -56,13 +83,16 @@
 
         <!-- Display Feedback -->
         <div class="card mt-4">
-            <div class="card-header bg-dark text-white">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-chat-dots"></i> All Feedback</h5>
+                <button id="clearFeedback" class="btn btn-sm btn-danger">
+                    <i class="bi bi-trash"></i> Clear All
+                </button>
             </div>
-            <div class="card-body">
+            <div class="card-body" id="feedbackList">
                 {% if feedback_entries %}
                     {% for feedback in feedback_entries %}
-                    <div class="card mb-3">
+                    <div class="card mb-3 feedback-entry">
                         <div class="card-body">
                             <h6 class="card-subtitle mb-2 text-muted">
                                 <i class="bi bi-person-circle"></i> {{ feedback.name }}
@@ -83,19 +113,47 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-lightbulb"></i> XSS Payloads</h5>
+                <h5 class="mb-0"><i class="bi bi-lightbulb"></i> More XSS Payloads</h5>
             </div>
             <div class="card-body">
-                <h6>Stored XSS:</h6>
-                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code></pre>
+                <h6>Script Tag:</h6>
+                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;script&gt;alert(1)&lt;/script&gt;</code></pre>
                 
-                <h6 class="mt-3">Image XSS:</h6>
-                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;img src=x onerror=alert('XSS')&gt;</code></pre>
+                <h6 class="mt-2">Image Error:</h6>
+                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;img src=x onerror=alert(1)&gt;</code></pre>
                 
-                <h6 class="mt-3">SVG XSS:</h6>
-                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;svg onload=alert('XSS')&gt;</code></pre>
+                <h6 class="mt-2">SVG Onload:</h6>
+                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;svg onload=alert(1)&gt;</code></pre>
+                
+                <h6 class="mt-2">Body Onload:</h6>
+                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;body onload=alert(1)&gt;</code></pre>
+                
+                <h6 class="mt-2">Input Autofocus:</h6>
+                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;input onfocus=alert(1) autofocus&gt;</code></pre>
+                
+                <h6 class="mt-2">Iframe:</h6>
+                <pre class="bg-dark text-light p-2 rounded small"><code>&lt;iframe src=javascript:alert(1)&gt;</code></pre>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Handle clear all button
+document.getElementById('clearFeedback').addEventListener('click', async function() {
+    if (!confirm('Clear all feedback entries?')) return;
+    
+    try {
+        const response = await fetch('/feedback/clear-all', {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            location.reload();
+        }
+    } catch (error) {
+        alert('Error clearing feedback: ' + error.message);
+    }
+});
+</script>
 {% endblock %}

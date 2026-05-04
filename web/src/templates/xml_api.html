@@ -12,9 +12,13 @@
             <div class="card-body">
                 <div class="alert alert-warning">
                     <h5><i class="bi bi-bug-fill"></i> Vulnerability: XML External Entity (XXE)</h5>
-                    <p><strong>Try reading files:</strong></p>
-                    <p><strong>Linux:</strong> <code>file:///etc/passwd</code></p>
-                    <p><strong>Windows:</strong> <code>file:///C:/Windows/System32/drivers/etc/hosts</code></p>
+                    <p><strong>Try these payloads to read files:</strong></p>
+                    <p><code>file:///etc/passwd</code> - User accounts</p>
+                    <p><code>file:///etc/hosts</code> - Host mappings</p>
+                    <p><code>file:///etc/group</code> - Group information</p>
+                    <p><code>file:///proc/self/cmdline</code> - Command line arguments</p>
+                    <p><code>file:///home/ubuntuhero/.bashrc</code> - User bash config</p>
+                    <p><code>file:///var/log/syslog</code> - System log</p>
                 </div>
 
                 <form id="xmlForm">

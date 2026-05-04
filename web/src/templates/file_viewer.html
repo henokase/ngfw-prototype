@@ -12,8 +12,13 @@
             <div class="card-body">
                 <div class="alert alert-warning">
                     <h5><i class="bi bi-bug-fill"></i> Vulnerability: Path Traversal</h5>
-                    <p><strong>Try:</strong> <code>../../etc/passwd</code> or <code>../../etc/hosts</code></p>
-                    <p><strong>Windows:</strong> <code>..\..\Windows\System32\drivers\etc\hosts</code></p>
+                    <p><strong>Try these payloads:</strong></p>
+                    <p><code>/etc/passwd</code> - User accounts</p>
+                    <p><code>/etc/hosts</code> - Host mappings</p>
+                    <p><code>/etc/shadow</code> - Password hashes (if readable)</p>
+                    <p><code>/proc/self/environ</code> - Environment variables</p>
+                    <p><code>/proc/version</code> - System version</p>
+                    <p><code>/root/.ssh/authorized_keys</code> - SSH keys (if accessible)</p>
                 </div>
 
                 <form id="fileForm">
