@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Path Traversal - NGFW Test Website{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="bi bi-folder2-open"></i> File Viewer - Path Traversal Test</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h5><i class="bi bi-bug-fill"></i> Vulnerability: Path Traversal</h5>
+                    <p><strong>Try these payloads:</strong></p>
+                    <p><code>/etc/passwd</code> - User accounts</p>
+                    <p><code>/etc/hosts</code> - Host mappings</p>
+                    <p><code>/etc/group</code> - Group information</p>
+                    <p><code>/proc/version</code> - Kernel version</p>
+                    <p><code>/etc/lsb-release</code> - OS release info</p>
+                    <p><code>/proc/self/status</code> - Process status</p>
+                    <p><code>/etc/resolv.conf</code> - DNS resolver config</p>
+                </div>
+
+                <form id="fileForm">
+                    <div class="mb-3">
+                        <label for="filename" class="form-label"><i class="bi bi-file-text"></i> Filename to View</label>
+                        <input type="text" class="form-control" id="filename" name="filename" required
+                               placeholder="Enter filename (e.g., ../../etc/passwd)">
+                    </div>
+                    <button type="submit" class="btn btn-warning btn-lg w-100">
+                        <i class="bi bi-eye"></i> View File
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div id="outputSection" class="card mt-4" style="display: none;">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-file-text"></i> File Contents</h5>
+                <div>
+                    <button id="fullscreenBtn" class="btn btn-sm btn-outline-light me-2">
+                        <i class="bi bi-arrows-fullscreen"></i> Fullscreen
+                    </button>
+                    <button id="clearBtn" class="btn btn-sm btn-outline-light">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <p><strong>Filename:</strong> <code id="displayFilename"></code></p>
+                <p><strong>Size:</strong> <span id="fileSize"></span> bytes</p>
+                <pre id="fileContent" class="bg-dark text-light p-3 rounded" style="max-height: 400px; overflow: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fullscreen Modal -->
+<div class="modal fade" id="fullscreenModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-file-text"></i> File Contents - Fullscreen</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Filename:</strong> <code id="fullscreenFilename"></code></p>
+                <pre id="fullscreenContent" class="bg-black text-light p-3 rounded" style="height: calc(100vh - 200px); overflow: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('fileForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const filename = document.getElementById('filename').value;
+    const outputSection = document.getElementById('outputSection');
+    const displayFilename = document.getElementById('displayFilename');
+    const fileSize = document.getElementById('fileSize');
+    const fileContent = document.getElementById('fileContent');
+    
+    // Show loading
+    outputSection.style.display = 'block';
+    displayFilename.textContent = filename;
+    fileSize.textContent = '...';
+    fileContent.textContent = 'Loading...';
+    
+    try {
+        const response = await fetch('{{ url_for("file.read_file") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ filename: filename })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            displayFilename.textContent = data.filename;
+            fileSize.textContent = data.size;
+            fileContent.textContent = data.content;
+        } else {
+            displayFilename.textContent = filename;
+            fileSize.textContent = '0';
+            fileContent.textContent = 'Error: ' + data.message;
+            fileContent.classList.add('text-danger');
+        }
+    } catch (error) {
+        displayFilename.textContent = filename;
+        fileSize.textContent = '0';
+        fileContent.textContent = 'Request failed: ' + error.message;
+        fileContent.classList.add('text-danger');
+    }
+});
+
+// Fullscreen functionality
+document.getElementById('fullscreenBtn').addEventListener('click', function() {
+    const filename = document.getElementById('displayFilename').textContent;
+    const content = document.getElementById('fileContent').textContent;
+    
+    document.getElementById('fullscreenFilename').textContent = filename;
+    document.getElementById('fullscreenContent').textContent = content;
+    
+    const modal = new bootstrap.Modal(document.getElementById('fullscreenModal'));
+    modal.show();
+});
+
+// Clear functionality
+document.getElementById('clearBtn').addEventListener('click', function() {
+    document.getElementById('outputSection').style.display = 'none';
+    document.getElementById('filename').value = '';
+});
+</script>
+{% endblock %}

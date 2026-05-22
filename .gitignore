@@ -220,3 +220,6 @@ Thumbs.db
 
 # ml data
 ml/data/
+
+# web venv
+web/venv/

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}File Upload - NGFW Test Website{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="bi bi-file-earmark-arrow-up"></i> File Upload - Malware Scanning Test</h4>
+            </div>
+            <div class="card-body">
+                <!-- Vulnerability Warning -->
+                <div class="alert alert-danger" role="alert">
+                    <h5><i class="bi bi-bug-fill"></i> Vulnerability: Unrestricted File Upload</h5>
+                    <p class="mb-0"><strong>No file type validation!</strong> Upload any file type.</p>
+                    <p class="mt-2"><strong>Test with these:</strong></p>
+                    <p><code>webshell.php</code> - PHP web shell</p>
+                    <p><code>shell.jsp</code> - JSP web shell</p>
+                    <p><code>backdoor.py</code> - Python backdoor</p>
+                    <p><code>malware.sh</code> - Shell script</p>
+                    <p><code>EICAR test file</code> - Standard AV test signature</p>
+                    <p><code>image.jpg.php</code> - Double extension bypass</p>
+                </div>
+
+                <!-- Upload Form -->
+                <form method="POST" action="{{ url_for('upload.upload_file') }}" enctype="multipart/form-data" id="uploadForm">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">
+                            <i class="bi bi-file-earmark"></i> Select File to Upload
+                        </label>
+                        <input type="file" class="form-control" id="file" name="file" required>
+                        <small class="text-muted">Any file type accepted - No validation!</small>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger btn-lg">
+                            <i class="bi bi-upload"></i> Upload File
+                        </button>
+                    </div>
+                </form>
+
+                <div id="uploadResult" class="mt-3"></div>
+            </div>
+            <div class="card-footer text-muted">
+                <small><i class="bi bi-info-circle"></i> Files are scanned with ClamAV. Infected files trigger VM1 blocking.</small>
+            </div>
+        </div>
+
+        <!-- Recent Uploads -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Uploads</h5>
+            </div>
+            <div class="card-body">
+                <p><a href="{{ url_for('upload.list_uploads') }}" class="btn btn-info">
+                    <i class="bi bi-list"></i> View All Uploads
+                </a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- How It Works -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-lightbulb"></i> How It Works</h5>
+            </div>
+            <div class="card-body">
+                <h6>Upload Process:</h6>
+                <ol class="small">
+                    <li>File saved to <code>/tmp/uploads/</code></li>
+                    <li>ClamAV scans for malware</li>
+                    <li>Calculate SHA256 hash</li>
+                    <li><strong>If CLEAN:</strong>
+                        <ul>
+                            <li>Move to <code>/uploads/safe/</code></li>
+                            <li>Create DB record</li>
+                            <li>Return success</li>
+                        </ul>
+                    </li>
+                    <li><strong>If INFECTED:</strong>
+                        <ul>
+                            <li>Move to <code>/uploads/quarantine/</code></li>
+                            <li>Send alert to VM1</li>
+                            <li>VM1 blocks uploader IP</li>
+                            <li>Return error</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- VM1/VM2 Architecture -->
+        <div class="card mt-3">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Architecture</h5>
+            </div>
+            <div class="card-body">
+                <p class="small"><strong>Critical:</strong> VM2 does NOT see real client IPs!</p>
+                <ul class="small">
+                    <li>VM2 only sees: <code>10.0.0.1</code> (VM1)</li>
+                    <li>Alert sent to VM1: filename, hash, signature</li>
+                    <li>VM1 correlates with conntrack</li>
+                    <li>VM1 blocks real attacker IP</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- EICAR Test File -->
+        <div class="card mt-3">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-text"></i> EICAR Test</h5>
+            </div>
+            <div class="card-body">
+                <p class="small">Create EICAR test file:</p>
+                <pre class="bg-dark text-light p-2 rounded small"><code>X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*</code></pre>
+                <p class="small">Save as <code>eicar.txt</code> and upload to test malware detection.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const resultDiv = document.getElementById('uploadResult');
+    
+    resultDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> Uploading and scanning...</div>';
+    
+    fetch('{{ url_for("upload.upload_file") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success alert-dismissible fade show">
+                    <h5><i class="bi bi-check-circle-fill"></i> File Clean!</h5>
+                    <p><strong>Filename:</strong> ${data.filename}</p>
+                    <p><strong>Hash:</strong> <code>${data.file_hash}</code></p>
+                    <p><strong>Result:</strong> ${data.scan_result}</p>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger alert-dismissible fade show">
+                    <h5><i class="bi bi-exclamation-triangle-fill"></i> Malware Detected!</h5>
+                    <p><strong>Filename:</strong> ${data.filename || 'Unknown'}</p>
+                    <p><strong>Hash:</strong> <code>${data.file_hash || 'N/A'}</code></p>
+                    <p><strong>Signature:</strong> <code>${data.signature || 'Unknown'}</code></p>
+                    <p><strong>Action:</strong> File quarantined, VM1 notified</p>
+                    <p class="mb-0"><strong>Message:</strong> ${data.message}</p>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger alert-dismissible fade show">
+                <h5><i class="bi bi-x-circle-fill"></i> Upload Error</h5>
+                <p>${error.message}</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+    });
+});
+</script>
+{% endblock %}

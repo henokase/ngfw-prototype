@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}404 Not Found - NGFW Test Website{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow text-center">
+            <div class="card-body py-5">
+                <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 5rem;"></i>
+                <h1 class="mt-4 display-1">404</h1>
+                <h2>Page Not Found</h2>
+                <p class="lead mt-3">The page you're looking for doesn't exist.</p>
+                
+                <hr class="my-4">
+                
+                <h5>Available Endpoints:</h5>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <ul class="list-group text-start">
+                            <li class="list-group-item"><a href="{{ url_for('misc.index') }}"><i class="bi bi-house"></i> Home</a></li>
+                            <li class="list-group-item"><a href="{{ url_for('auth.login') }}"><i class="bi bi-key"></i> Login (SQL Injection)</a></li>
+                            <li class="list-group-item"><a href="{{ url_for('upload.upload_form') }}"><i class="bi bi-file-earmark-arrow-up"></i> File Upload</a></li>
+                            <li class="list-group-item"><a href="{{ url_for('cmd.command_form') }}"><i class="bi bi-terminal"></i> Command Injection</a></li>
+                            <li class="list-group-item"><a href="{{ url_for('file.file_viewer_form') }}"><i class="bi bi-folder2-open"></i> Path Traversal</a></li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-group text-start">
+                            <li class="list-group-item"><a href="{{ url_for('xss.feedback_page') }}"><i class="bi bi-code-slash"></i> XSS Test</a></li>
+                            <li class="list-group-item"><a href="{{ url_for('xml.xml_form') }}"><i class="bi bi-file-code"></i> XXE Test</a></li>
+                            <li class="list-group-item"><a href="{{ url_for('redirect.redirect_page') }}"><i class="bi bi-arrow-right-circle"></i> Open Redirect</a></li>
+                            <li class="list-group-item"><a href="{{ url_for('misc.stats') }}"><i class="bi bi-graph-up"></i> Statistics</a></li>
+                            <li class="list-group-item"><a href="{{ url_for('misc.help_page') }}"><i class="bi bi-question-circle"></i> Help</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <a href="{{ url_for('misc.index') }}" class="btn btn-primary btn-lg mt-4">
+                    <i class="bi bi-house-door"></i> Go to Homepage
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - NGFW Test Website{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="bi bi-person-circle"></i> User Profile</h4>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="bi bi-person-circle text-primary" style="font-size: 5rem;"></i>
+                </div>
+                <table class="table">
+                    <tr>
+                        <th>Username:</th>
+                        <td>{{ username }}</td>
+                    </tr>
+                    <tr>
+                        <th>User ID:</th>
+                        <td>{{ user_id }}</td>
+                    </tr>
+                    <tr>
+                        <th>Session:</th>
+                        <td>Active</td>
+                    </tr>
+                </table>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-danger">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
