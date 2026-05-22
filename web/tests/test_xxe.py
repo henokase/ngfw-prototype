@@ -11,7 +11,7 @@ import sys
 import time
 
 BASE_URL = "http://localhost:5000"
-DELAY = 1.5
+WAIT = 10
 
 PAYLOADS = [
     {
@@ -166,7 +166,8 @@ if __name__ == "__main__":
     for p in PAYLOADS:
         r = test_payload(p)
         results.append(r)
-        time.sleep(DELAY)
+        if p["id"] != len(PAYLOADS):
+            time.sleep(WAIT)
     print_report(results)
 
     sys.exit(0 if any(r["passed"] for r in results) else 1)

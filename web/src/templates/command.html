@@ -13,11 +13,11 @@
                 <div class="alert alert-danger">
                     <h5><i class="bi bi-bug-fill"></i> Vulnerability: Command Injection</h5>
                     <p class="mb-2"><strong>Try any command:</strong></p>
-                    <p><code>whoami</code> - Display current user</p>
-                    <p><code>id</code> - Display user identity and groups</p>
-                    <p><code>cat /etc/hostname</code> - Read hostname file</p>
-                    <p><code>uname -a</code> - Display system/kernel info</p>
-                    <p><code>echo $(date)</code> - Command substitution</p>
+                    <p><code>echo test; whoami</code> - Semicolon injection</p>
+                    <p><code>echo test && id</code> - AND operator injection</p>
+                    <p><code>echo $(cat /etc/hostname)</code> - Command substitution</p>
+                    <p><code>echo test | head -1</code> - Pipe injection</p>
+                    <p><code>echo $(date)</code> - Dollar-paren substitution</p>
                     <p><code>ps aux | head -5</code> - Pipe chaining</p>
                     <p><code>ls -la /etc/ | grep passwd</code> - Grep filter</p>
                     <hr>

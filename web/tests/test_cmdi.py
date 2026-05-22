@@ -11,33 +11,33 @@ import sys
 import time
 
 BASE_URL = "http://localhost:5000"
-DELAY = 1.5
+WAIT = 10
 
 PAYLOADS = [
     {
         "id": 1,
-        "command": "whoami",
-        "description": "Direct command - display current user",
+        "command": "echo test; whoami",
+        "description": "Semicolon injection - chain commands",
         "expected_output": "ubuntuhero",
     },
     {
         "id": 2,
-        "command": "id",
-        "description": "Display user identity and groups",
+        "command": "echo test && id",
+        "description": "AND operator injection - conditional execution",
         "expected_output": "uid=",
     },
     {
         "id": 3,
-        "command": "cat /etc/hostname",
-        "description": "Read hostname file",
+        "command": "echo $(cat /etc/hostname)",
+        "description": "Command substitution - inject via dollar-paren",
         "expected_output": None,
         "expected_length": 1,
     },
     {
         "id": 4,
-        "command": "uname -a",
-        "description": "Display system/kernel information",
-        "expected_output": "Linux",
+        "command": "echo test | head -1",
+        "description": "Pipe injection - redirect output",
+        "expected_output": "test",
     },
     {
         "id": 5,
@@ -176,7 +176,8 @@ if __name__ == "__main__":
     for p in PAYLOADS:
         r = test_payload(p)
         results.append(r)
-        time.sleep(DELAY)
+        if p["id"] != len(PAYLOADS):
+            time.sleep(WAIT)
     print_report(results)
 
     sys.exit(0 if any(r["passed"] for r in results) else 1)

