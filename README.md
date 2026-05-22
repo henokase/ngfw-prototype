@@ -1,6 +1,6 @@
 # NGFW Prototype
 
-> Open-source Next-Generation Firewall prototype combining Suricata, nftables stateful filtering, ClamAV malware detection, and ML-based anomaly detection with a React admin dashboard.
+> Next-Generation Firewall prototype combining Suricata, nftables stateful filtering, ClamAV malware detection, and ML-based anomaly detection with a React admin dashboard.
 
 ## Table of Contents
 
