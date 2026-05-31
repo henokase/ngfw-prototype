@@ -32,7 +32,7 @@ Environment variables (all optional):
     SURICATA_FILE_WAIT_TIMEOUT  - Max seconds to wait for file (default: 10)
     SURICATA_TAIL_SLEEP       - Seconds between tail iterations (default: 0.5)
     SURICATA_SCAN_CACHE_TTL - Seconds to cache scanned hashes (default: 3600)
-    ALERT_CACHE_TTL          - Seconds to deduplicate alerts (default: 300)
+    ALERT_CACHE_TTL          - Seconds to deduplicate alerts (default: 5)
 """
 
 from __future__ import annotations
@@ -83,10 +83,11 @@ class Settings:
     tail_sleep: float = float(os.environ.get("SURI_TAIL_SLEEP", "0.5"))
 
     # Simple rate-limit / dedup: how long to remember scanned hashes (seconds)
-    scan_cache_ttl: float = float(os.environ.get("SURI_SCAN_CACHE_TTL", "3600"))
+    # Changed from 3600 to 7 - was caching too long, preventing re-blocks
+    scan_cache_ttl: float = float(os.environ.get("SURI_SCAN_CACHE_TTL", "7"))
 
     # Alert dedup: how long to remember alert (src_ip, sid) pairs (seconds)
-    alert_cache_ttl: float = float(os.environ.get("ALERT_CACHE_TTL", "300"))
+    alert_cache_ttl: float = float(os.environ.get("ALERT_CACHE_TTL", "5"))
 
 
 settings = Settings()
@@ -371,8 +372,7 @@ def is_server_ip(ip: str) -> bool:
     """Check if the IP belongs to a known server (not an attacker)."""
     return ip in {
         "10.0.0.5",      # VM2 web server
-        "192.168.1.10", # VM1 gateway
-        "192.168.1.3",   # VM1 bridged
+        "192.168.1.70",   # VM1 bridged
     }
 
 
@@ -393,7 +393,6 @@ def severity_to_block_action(severity: int, sid: int, category: str = "", signat
     Returns (should_block, ttl_string_or_None).
     """
     # Never block Suricata internal protocol anomalies (stream errors, etc.)
-    # These are SID range 2210000+ and are usually network quality issues
     if sid >= 2210000:
         return False, None
 
@@ -401,19 +400,15 @@ def severity_to_block_action(severity: int, sid: int, category: str = "", signat
     if category in {"Not Suspicious Traffic", "Unknown Traffic", "Informational"}:
         return False, None
 
-    # Never block ET "INFO" rules (signature starts with "ET INFO")
     # These are informational alerts, not actual attacks (e.g., Notion.so, Cloudflare, etc.)
     if signature.startswith("ET INFO"):
         return False, None
 
-    # Never block ET APT/package management rules (SID 2013500-2013600)
     if 2013500 <= sid <= 2013600:
         return False, None
 
-    # Never block ET "INFO" rules (these are informational, not attacks)
     # SID 2014xxx, 2015xxx, 2016xxx, 2017xxx, 2018xxx are mostly INFO
     if sid >= 2014000 and sid <= 2019999:
-        # Only block if it's explicitly an exploit rule
         if "exploit" not in category.lower() and "attack" not in category.lower():
             return False, None
 
@@ -423,29 +418,20 @@ def severity_to_block_action(severity: int, sid: int, category: str = "", signat
 
     # For medium severity (3), only block if it's a known attack category
     if severity == 3:
-        # Custom rules (SID >= 1000000) are always blocked (these are our rules)
         if sid >= 1000000:
-            return True, "1h"  # Custom rules block for 1 hour
+            return True, "1h"
 
-        # Only block medium severity if it's a WEB APPLICATION ATTACK
-        # (not informational rules like APT user-agent, etc.)
+       
         if "web-application-attack" in category.lower():
             return True, "1h"
 
-        # EXPLOIT rules with severity 3 are likely real attacks
         if "exploit" in category.lower():
             return True, "1h"
 
-        # All other severity 3 rules are informational - don't block
         return False, None
 
     # Low severity (4) or anything else: log only, don't block
     return False, None
-
-
-# ---------------------------------------------------------------------------
-# Conntrack Correlator
-# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
@@ -492,22 +478,67 @@ scan_cache = ScanCache(ttl=settings.scan_cache_ttl)
 def tail_eve(path: str):
     """Generator that yields new JSON lines appended to the EVE log.
 
-    It does not try to handle log rotation aggressively; for this
-    project, a simple tail -F style behavior is sufficient.
+    Handles Suricata restarts and log rotation by detecting file changes.
     """
-    # Open and seek to end to only process new events
-    f = open(path, "r", encoding="utf-8")
-    f.seek(0, os.SEEK_END)
+    f = None
+    last_inode = None
+    last_size = 0
+    restart_delay = 2
 
     while True:
-        line = f.readline()
-        if not line:
-            time.sleep(settings.tail_sleep)
+        try:
+            # Check if file exists
+            if not os.path.exists(path):
+                log.warning(f"EVE log not found, waiting... ({path})")
+                time.sleep(restart_delay)
+                continue
+
+            # Get current file stats
+            stat = os.stat(path)
+            current_inode = stat.st_ino
+            current_size = stat.st_size
+
+            # Open or reopen if file changed (rotation or restart)
+            if f is None or current_inode != last_inode:
+                if f:
+                    f.close()
+                log.info(f"Opening EVE log: {path} (inode={current_inode}, size={current_size})")
+                f = open(path, "r", encoding="utf-8")
+                last_inode = current_inode
+                last_size = current_size
+                # Seek to end to only read new events
+                f.seek(0, os.SEEK_END)
+
+            # Handle file truncation (suricata restart often resets log)
+            if current_size < last_size:
+                log.info("EVE log truncated (Suricata restart detected), seeking to new end")
+                f.seek(0, os.SEEK_END)
+                last_size = current_size
+
+            # Read new lines
+            line = f.readline()
+            if not line:
+                # Update size for next iteration
+                try:
+                    last_size = os.path.getsize(path)
+                except:
+                    pass
+                time.sleep(settings.tail_sleep)
+                continue
+
+            last_size = f.tell()
+            line = line.strip()
+            if not line:
+                continue
+            yield line
+
+        except Exception as e:
+            log.error(f"Error in tail_eve: {e}")
+            if f:
+                f.close()
+                f = None
+            time.sleep(restart_delay)
             continue
-        line = line.strip()
-        if not line:
-            continue
-        yield line
 
 
 # ---------------------------------------------------------------------------
@@ -548,44 +579,52 @@ def wait_for_file(path: str) -> bool:
 
 
 def send_detection_to_api(
-    file_hash: Optional[str],
-    signature: Optional[str],
     src_ip: Optional[str],
     dest_ip: Optional[str],
     event: Dict[str, Any],
-    detection_type: str = "malware_file_detected",
+    action: str,
+    extra_data: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Send detection log to the NGFW control API (NO blocking here).
-
-    Blocking is handled by the caller (process_alert_event or process_fileinfo_event).
-    """
+    """Send detection log to the NGFW control API."""
     base = settings.api_base_url.rstrip("/")
 
-    detection_payload = {
-        "source": "suricata_clamav",
-        "event": detection_type,
-        "data": {
-            "file_hash": file_hash,
-            "signature": signature,
-            "src_ip": src_ip,
-            "dest_ip": dest_ip,
-            "suricata_event": event,
-        },
+    log_data = {
+        "source": "decision_engine",
+        "action": action,
+        "src_ip": src_ip,
+        "dest_ip": dest_ip,
     }
 
+    if extra_data:
+        log_data.update(extra_data)
+
+    if action.startswith("alert_"):
+        alert_name = action.replace("alert_", "")
+        if alert_name.startswith("CUSTOM "):
+            alert_name = alert_name[7:]  # Remove "CUSTOM " prefix
+        log_data["alert_name"] = alert_name
+        alert = event.get("alert", {})
+        if alert:
+            log_data["category"] = alert.get("category", "unknown")
+            log_data["signature"] = alert.get("signature", "unknown")
+            log_data["sid"] = alert.get("signature_id", 0)
+            log_data["severity"] = alert.get("severity", 3)
+
+    if action == "malware_file_detected":
+        fileinfo = event.get("fileinfo", {})
+        log_data["filename"] = fileinfo.get("filename", "unknown")
+        log_data["file_size"] = fileinfo.get("size", 0)
+        log_data["file_magic"] = fileinfo.get("magic", "unknown")
+
     try:
-        r = requests.post(f"{base}/api/log_detection", json=detection_payload, timeout=5)
+        r = requests.post(f"{base}/api/log_detection", json=log_data, timeout=5)
         r.raise_for_status()
         log.info(
-            f"Logged detection for "
-            f"src_ip={src_ip}, sig={signature}, type={detection_type} "
+            f"Logged detection: action={action}, src_ip={src_ip} "
             f"to decision engine (log_id={r.json().get('log_id')})"
         )
     except Exception as exc:
         log.error(f"Failed to post detection to decision engine: {exc}")
-
-    # NOTE: Blocking is NOT done here anymore.
-    # It's handled by the caller after severity/whitelist checks.
 
 
 # ---------------------------------------------------------------------------
@@ -628,16 +667,6 @@ def process_alert_event(event: Dict[str, Any]) -> None:
         log.info(f"Duplicate alert skipped: src_ip={src_ip}, sid={sid}")
         return
 
-    # Log the detection (NO blocking here - handled separately)
-    send_detection_to_api(
-        file_hash=None,
-        signature=signature,
-        src_ip=src_ip,
-        dest_ip=event.get("dest_ip"),
-        event=event,
-        detection_type=f"alert_{signature}",
-    )
-
     # Severity-based decision logic (now includes category and signature check)
     block, ttl = severity_to_block_action(severity, sid, category, signature)
 
@@ -648,10 +677,35 @@ def process_alert_event(event: Dict[str, Any]) -> None:
         )
         return
 
-    # Block the IP with the determined TTL
+    # Deduplicate alert logging - only log once per IP within 60 seconds
+    alert_log_key = f"{src_ip}:block"
+    current_time = time.time()
+    if hasattr(process_alert_event, '_last_log_time'):
+        last_time = getattr(process_alert_event, '_last_log_time', {})
+        if alert_log_key in last_time and (current_time - last_time[alert_log_key]) < 60:
+            log.info(f"Skipping duplicate alert log for src_ip={src_ip} (logged within 60s)")
+        else:
+            last_time[alert_log_key] = current_time
+            setattr(process_alert_event, '_last_log_time', last_time)
+            send_detection_to_api(
+                src_ip=src_ip,
+                dest_ip=dest_ip,
+                event=event,
+                action=f"alert_{signature}",
+            )
+    else:
+        setattr(process_alert_event, '_last_log_time', {alert_log_key: current_time})
+        send_detection_to_api(
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            event=event,
+            action=f"alert_{signature}",
+        )
+
+    # Block the IP with the determined TTL (for non-ML forwarded attacks)
     block_payload = {
         "ip": src_ip,
-        "reason": f"suricata_alert_{signature}",
+        "reason": signature,
         "signature": signature,
         "ttl": ttl,
     }
@@ -715,19 +769,42 @@ def process_fileinfo_event(event: Dict[str, Any]) -> None:
             log.warning(f"Fileinfo event without source IP, cannot block: file_hash={file_hash}")
             return
         dest_ip = event.get("dest_ip")
+
+        # Log the detection for malware
         send_detection_to_api(
-            file_hash=file_hash,
-            signature=signature,
             src_ip=src_ip,
             dest_ip=dest_ip,
             event=event,
-            detection_type="malware_file_detected",
+            action="malware_file_detected",
+            extra_data={"file_hash": file_hash, "clamav_signature": signature},
         )
+
+        # Store malware alert in database
+        try:
+            fileinfo = event.get("fileinfo", {})
+            filename = fileinfo.get("filename", "unknown")
+            r = requests.post(
+                f"{settings.api_base_url}/api/malware_alert",
+                json={
+                    "filename": filename,
+                    "file_hash": file_hash,
+                    "signature": signature,
+                    "source_ip": src_ip,
+                    "action": "blocked",
+                    "confidence": 1.0,
+                },
+                timeout=5,
+            )
+            if r.status_code == 200:
+                log.info(f"Stored malware alert for {filename}, sig={signature}")
+        except Exception as e:
+            log.error(f"Failed to store malware alert: {e}")
+
         # Block the IP immediately if not whitelisted
         if src_ip and not is_ip_whitelisted(src_ip):
             block_payload = {
                 "ip": src_ip,
-                "reason": f"malware:{signature}",
+                "reason": "Malware Signature Detected",
                 "signature": signature,
                 "ttl": "24h",
             }

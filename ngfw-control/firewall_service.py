@@ -19,7 +19,7 @@ def is_valid_ip(ip: str) -> bool:
 
 def _run_nft(args: List[str]) -> Tuple[bool, str]:
     """Run an nft command. Returns (success, output)."""
-    cmd = [config.NFT_BIN] + args
+    cmd = ["sudo", config.NFT_BIN] + args
     try:
         completed = subprocess.run(
             cmd,
@@ -42,8 +42,13 @@ def add_block(ip: str, ttl: str) -> Tuple[bool, str]:
     if not is_valid_ip(ip):
         return False, "invalid IP"
 
-    set_expr = f"{{ {ip} timeout {ttl} }}"
     table, set_name = config.NFT_TABLE, config.NFT_BLOCK_SET
+    
+    if ttl and ttl.lower() == "permanent":
+        set_expr = f"{{ {ip} }}"
+    else:
+        set_expr = f"{{ {ip} timeout {ttl} }}"
+    
     args = [
         "add",
         "element",
@@ -54,6 +59,7 @@ def add_block(ip: str, ttl: str) -> Tuple[bool, str]:
     success, out = _run_nft(args)
     if success:
         security_logger.warning(f"Blocked IP via nftables: {ip} ttl={ttl}")
+    
     return success, out
 
 
@@ -73,6 +79,7 @@ def remove_block(ip: str) -> Tuple[bool, str]:
     success, out = _run_nft(args)
     if success:
         security_logger.warning(f"Unblocked IP via nftables: {ip}")
+    
     return success, out
 
 
@@ -80,3 +87,14 @@ def list_blocks() -> Tuple[bool, str]:
     table, set_name = config.NFT_TABLE, config.NFT_BLOCK_SET
     args = ["list", "set", table, set_name]
     return _run_nft(args)
+
+
+def clear_all_blocks() -> Tuple[bool, str]:
+    """Flush all IPs from the nftables blocked set."""
+    table, set_name = config.NFT_TABLE, config.NFT_BLOCK_SET
+    args = ["flush", "set", table, set_name]
+    success, out = _run_nft(args)
+    if success:
+        security_logger.warning("Flushed all blocked IPs from nftables")
+    
+    return success, out

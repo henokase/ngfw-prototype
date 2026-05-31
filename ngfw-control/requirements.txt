@@ -2,3 +2,4 @@ Flask>=3.0.0
 SQLAlchemy>=2.0.0
 conntrack
 requests
+netifaces
