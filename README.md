@@ -670,4 +670,4 @@ npm run preview   # Preview production build locally
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for full text
+MIT License. See [LICENSE](LICENSE) for full text.
